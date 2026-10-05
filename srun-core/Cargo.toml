@@ -14,3 +14,8 @@ chrono = "0.4"
 hex = "0.4"
 # 自定义字母表 Base64，对应 Python srun_lib.base64_encode
 base64 = "0.22"
+# HmacMD5 密码加密，对应 Python srun.encrypt.encrypt_password
+hmac = "0.12"
+md-5 = { package = "md-5", version = "0.10" }
+# SHA1 校验串，对应 Python srun.encrypt.get_chkstr
+sha1 = "0.10"
