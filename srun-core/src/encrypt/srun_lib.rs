@@ -80,3 +80,90 @@ pub fn x_encode(data: &[u8], key: &[u8]) -> Vec<u8> {
     }
     xxtea_words_to_bytes(&v)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 空数据应短路返回空 `Vec<u8>`，避免后续 `v[n]` 越界
+    #[test]
+    fn x_encode_empty_data_returns_empty() {
+        assert!(x_encode(b"", b"token").is_empty());
+    }
+
+    /// 输出长度公式 `((L+3)/4 + 1) * 4`，对应 Python `_xxtea_str_to_words(_, true)` 后
+    /// 追加 1 个长度字 + 每 u32 拆 4 字节小端
+    #[test]
+    fn x_encode_length_formula() {
+        let key = b"token";
+        for (input_len, expected) in [
+            (1usize, 8usize),
+            (4, 8),
+            (5, 12),
+            (8, 12),
+            (16, 20),
+        ] {
+            let data = vec![0u8; input_len];
+            let out = x_encode(&data, key);
+            assert_eq!(out.len(), expected, "input_len={input_len}");
+        }
+    }
+
+    /// 黄金向量由 Python `srun-campus-network-main` 跑得，确保 Rust 实现与之字节级一致。
+    /// 命令：`python -c "from srun.srun_lib import x_encode; print(x_encode(b'abc', b'token').hex())"`
+    #[test]
+    fn x_encode_golden_abc_token() {
+        let out = x_encode(b"abc", b"token");
+        let expected = hex::decode("723c6bd44e430443").unwrap();
+        assert_eq!(out, expected);
+    }
+
+    /// 黄金向量：`x_encode(b'hello', b'world')`
+    #[test]
+    fn x_encode_golden_hello_world() {
+        let out = x_encode(b"hello", b"world");
+        let expected = hex::decode("bb555ab502d14df680522cc4").unwrap();
+        assert_eq!(out, expected);
+    }
+
+    /// 黄金向量：`x_encode(b'a', b'k')`（1 字节 → 8 字节输出）
+    #[test]
+    fn x_encode_golden_a_k() {
+        let out = x_encode(b"a", b"k");
+        let expected = hex::decode("10d188dc61522d85").unwrap();
+        assert_eq!(out, expected);
+    }
+
+    /// 黄金向量：`x_encode(b'abcd', b'k')`（4 字节 → 8 字节输出，无填充）
+    #[test]
+    fn x_encode_golden_abcd_k() {
+        let out = x_encode(b"abcd", b"k");
+        let expected = hex::decode("bc335d505156065e").unwrap();
+        assert_eq!(out, expected);
+    }
+
+    /// 黄金向量：`x_encode(b'abcde', b'k')`（5 字节 → 12 字节输出，含 1 个填充 word）
+    #[test]
+    fn x_encode_golden_abcde_k() {
+        let out = x_encode(b"abcde", b"k");
+        let expected = hex::decode("2aa69c32b961ab410eb7cda8").unwrap();
+        assert_eq!(out, expected);
+    }
+
+    /// 短密钥（<4 字节）应自动补 0 至 4 字，行为与 Python 一致
+    #[test]
+    fn x_encode_short_key_padded_to_4_words() {
+        // 密钥 "k"（1 字节）等价于 [0x6b, 0, 0, 0]
+        let out_short = x_encode(b"data", b"k");
+        let out_padded = x_encode(b"data", b"k\x00\x00\x00");
+        assert_eq!(out_short, out_padded);
+    }
+
+    /// 输出应在多次调用下保持稳定（确定性）
+    #[test]
+    fn x_encode_is_deterministic() {
+        let a = x_encode(b"stable", b"key");
+        let b = x_encode(b"stable", b"key");
+        assert_eq!(a, b);
+    }
+}

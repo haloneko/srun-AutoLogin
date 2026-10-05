@@ -10,3 +10,5 @@ serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 # 时间戳，对应 Python datetime.now().strftime("%H:%M:%S")
 chrono = "0.4"
+# hex 编解码：步骤 5 测试用例解码黄金向量；步骤 7 起 password/chkstr 输出 hex
+hex = "0.4"
