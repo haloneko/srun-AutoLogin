@@ -1,0 +1,7 @@
+[package]
+name = "srun-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+srun-core = { path = "../srun-core" }
