@@ -9,3 +9,6 @@ clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 anyhow = "1"
 
+[dev-dependencies]
+assert_cmd = "2"
+
