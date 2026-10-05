@@ -30,3 +30,74 @@ pub fn encrypt_info(info: &LoginInfo, token: &str) -> Result<String> {
     let x_encoded = x_encode(data, key);
     Ok(base64_encode(&x_encoded))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// LoginInfo 序列化字段顺序严格断言：
+    /// 必须是 `username, password, ip, acid, enc_ver`（紧凑无空格、不转义非 ASCII）
+    #[test]
+    fn login_info_serialization_field_order() {
+        let info = LoginInfo {
+            username: "user1",
+            password: "pass1",
+            ip: "1.2.3.4",
+            acid: "1",
+            enc_ver: "srun_bx1",
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert_eq!(
+            json,
+            r#"{"username":"user1","password":"pass1","ip":"1.2.3.4","acid":"1","enc_ver":"srun_bx1"}"#
+        );
+    }
+
+    /// LoginInfo 中文字段不转义为 `\uXXXX`（与 Python `ensure_ascii=False` 一致）
+    #[test]
+    fn login_info_keeps_chinese_unescaped() {
+        let info = LoginInfo {
+            username: "张三",
+            password: "p",
+            ip: "1.2.3.4",
+            acid: "1",
+            enc_ver: "srun_bx1",
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("张三"), "got: {json}");
+        assert!(!json.contains("\\u"), "got: {json}");
+    }
+
+    /// 黄金向量：`encrypt_info(LoginInfo{user1, pass1, 1.2.3.4, 1, srun_bx1}, 'abc123')`
+    /// 与 Python `srun.encrypt.encrypt_info` 输出一致
+    #[test]
+    fn golden_encrypt_info_user1() {
+        let info = LoginInfo {
+            username: "user1",
+            password: "pass1",
+            ip: "1.2.3.4",
+            acid: "1",
+            enc_ver: "srun_bx1",
+        };
+        let out = encrypt_info(&info, "abc123").unwrap();
+        assert_eq!(
+            out,
+            "+oJls6bvVHqhBCxHkD5rShcXQmpSOuNgLVSbsel/7YRK/KbUCEAmsjeHjm83NFEy7bfvHX0GH/LNDx0NgmMJujnWSIvnxA7CIroeQUR2J79EpeFIxBMELM1oPpZ="
+        );
+    }
+
+    /// 同输入应得到同输出（确定性）
+    #[test]
+    fn encrypt_info_is_deterministic() {
+        let info = LoginInfo {
+            username: "u",
+            password: "p",
+            ip: "1.2.3.4",
+            acid: "1",
+            enc_ver: "srun_bx1",
+        };
+        let a = encrypt_info(&info, "tok").unwrap();
+        let b = encrypt_info(&info, "tok").unwrap();
+        assert_eq!(a, b);
+    }
+}
