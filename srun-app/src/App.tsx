@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import HeroButton from "./HeroButton";
 
@@ -32,6 +32,14 @@ type Status =
 /// 凭据暂存于 localStorage，将来由设置页写入（与这里约定的 key 保持一致即可）
 const CRED_USERNAME_KEY = "srun.username";
 const CRED_PASSWORD_KEY = "srun.password";
+
+/// 条形通知停留时长（ms），与进度条动画时长一致
+const TOAST_DURATION = 3000;
+
+interface ToastItem {
+  id: number;
+  msg: string;
+}
 
 function readCredential(key: string): string {
   try {
@@ -68,8 +76,19 @@ export default function App() {
   const [info, setInfo] = useState<OnlineStatus | null>(null);
   const [infoError, setInfoError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastId = useRef(0);
 
-  async function refreshStatus() {
+  /// 显示一条条形通知：新的显示在最上方，旧的被顶下去，各自带消失进度条
+  function showToast(msg: string) {
+    const id = ++toastId.current;
+    setToasts((prev) => [{ id, msg }, ...prev]);
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, TOAST_DURATION);
+  }
+
+  async function refreshStatus(notify = false) {
     setRefreshing(true);
     try {
       const s = await invoke<OnlineStatus>("srun_status");
@@ -83,8 +102,10 @@ export default function App() {
             ? prev
             : { kind: "idle" }
       );
+      if (notify) showToast(s.online ? "状态已更新" : "状态已更新（离线）");
     } catch (err) {
       setInfoError(String(err));
+      if (notify) showToast(`刷新失败：${String(err)}`);
     } finally {
       setRefreshing(false);
     }
@@ -163,16 +184,45 @@ export default function App() {
 
   return (
     <div className="shell">
-      <button
-        type="button"
-        className={`refresh-btn${refreshing ? " refresh-btn--spin" : ""}`}
-        onClick={refreshStatus}
-        disabled={refreshing}
-        title="刷新状态"
-        aria-label="刷新状态"
-      >
-        ⟳
-      </button>
+      <div className="topbar">
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => showToast("设置功能即将上线，敬请期待")}
+          title="设置"
+          aria-label="设置"
+        >
+          ⚙
+        </button>
+        <button
+          type="button"
+          className={`icon-btn${refreshing ? " icon-btn--spin" : ""}`}
+          onClick={() => void refreshStatus(true)}
+          disabled={refreshing}
+          title="刷新状态"
+          aria-label="刷新状态"
+        >
+          ⟳
+        </button>
+      </div>
+      {toasts.length > 0 && (
+        <div className="toast-stack" role="status" aria-live="polite">
+          {toasts.map((t) => (
+            <div key={t.id} className="toast">
+              <span className="toast__msg">{t.msg}</span>
+              <button
+                type="button"
+                className="toast__close"
+                onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+                aria-label="关闭通知"
+              >
+                ✕
+              </button>
+              <span className="toast__progress" aria-hidden />
+            </div>
+          ))}
+        </div>
+      )}
       <main className="home">
         <HeroButton
           status={status.kind}
