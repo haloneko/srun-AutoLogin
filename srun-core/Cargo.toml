@@ -4,3 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+thiserror = "1"
+# serde_json 提前引入（步骤 3 即将使用），以便 SrunError::Json 直接 From<serde_json::Error>
+serde_json = "1"

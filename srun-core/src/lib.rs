@@ -4,6 +4,7 @@
 //! 与具体的 UI 层（CLI / Tauri GUI）解耦，便于未来复用。
 
 pub mod config;
+pub mod error;
 
 #[cfg(test)]
 mod tests {
