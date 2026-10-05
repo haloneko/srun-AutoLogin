@@ -10,6 +10,7 @@ pub mod error;
 pub mod http;
 pub mod jsonp;
 pub mod logger;
+pub mod login;
 
 #[cfg(test)]
 mod tests {
