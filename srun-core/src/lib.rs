@@ -6,6 +6,7 @@
 pub mod config;
 pub mod encrypt;
 pub mod error;
+pub mod http;
 pub mod jsonp;
 pub mod logger;
 

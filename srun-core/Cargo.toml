@@ -19,3 +19,11 @@ hmac = "0.12"
 md-5 = { package = "md-5", version = "0.10" }
 # SHA1 校验串，对应 Python srun.encrypt.get_chkstr
 sha1 = "0.10"
+# HTTP 客户端，对应 Python utils/request.py。使用 rustls-tls 避免 native-tls/OpenSSL
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "cookies", "json"] }
+# 异步运行时（HTTP 调用必需）
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[dev-dependencies]
+# async mock HTTP server，用于 http/api 模块集成测试
+wiremock = "0.6"
