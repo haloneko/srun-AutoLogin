@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#42a5f5"/>
+      <stop offset="1" stop-color="#1565c0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 圆角蓝底 -->
+  <rect x="0" y="0" width="1024" height="1024" rx="184" fill="url(#bg)"/>
+
+  <!-- 地球/网络徽标（原 48x48 viewBox，等比放大 16 倍并居中） -->
+  <g transform="translate(128 128) scale(16)">
+    <circle cx="20.663" cy="20.439" r="15.439" fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round" />
+    <path fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round" d="M6.109 15.292h29.107M6.109 25.585h29.107" />
+    <ellipse cx="20.663" cy="20.439" fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round" rx="6.433" ry="15.021" />
+    <path fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round" d="M42.398 31.818a4.669 4.669 0 0 1-6.561 5.918l-4.099 4.75A1.757 1.757 0 0 1 29.254 40l4.75-4.098a4.669 4.669 0 0 1 5.917-6.561l-3.068 3.06l.416 2.069l2.068.416Z" />
+  </g>
+</svg>

@@ -1,3 +1,3 @@
 [workspace]
-members = ["srun-core", "srun-cli"]
+members = ["srun-core", "srun-cli", "srun-app/src-tauri"]
 resolver = "2"
