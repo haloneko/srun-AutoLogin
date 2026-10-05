@@ -58,17 +58,25 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
   const [autostart, setAutostart] = useState(false);
   const [autostartLoading, setAutostartLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  // 各输入框「已保存」的基线，用于判断是否有未提交修改（显示 ✓/✗）
+  const [savedUsername, setSavedUsername] = useState("");
+  const [savedPassword, setSavedPassword] = useState("");
+  const [savedBaseUrl, setSavedBaseUrl] = useState(DEFAULT_BASE_URL);
 
   // 打开抽屉时载入已保存的值，并查询开机自启动状态
   useEffect(() => {
     if (!open) return;
-    setUsername(read(CRED_USERNAME_KEY));
-    setPassword(read(CRED_PASSWORD_KEY));
-    setBaseUrl(read(BASE_URL_KEY) || DEFAULT_BASE_URL);
+    const u = read(CRED_USERNAME_KEY);
+    const p = read(CRED_PASSWORD_KEY);
+    const b = read(BASE_URL_KEY) || DEFAULT_BASE_URL;
+    setUsername(u);
+    setPassword(p);
+    setBaseUrl(b);
+    setSavedUsername(u);
+    setSavedPassword(p);
+    setSavedBaseUrl(b);
     setStartupMode(readStartupMode());
     setShowPwd(false);
-    setDirty(false);
     invoke<boolean>("autostart_enabled")
       .then(setAutostart)
       .catch(() => setAutostart(false));
@@ -100,29 +108,53 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
     }
   }
 
-  function save() {
+  function writeValue(key: string, value: string, okMsg: string): boolean {
+    try {
+      localStorage.setItem(key, value);
+      onToast(okMsg);
+      return true;
+    } catch {
+      onToast("保存失败：本地存储不可用");
+      return false;
+    }
+  }
+
+  function confirmUsername() {
     const u = username.trim();
     if (!u) {
       onToast("请填写用户名");
       return;
     }
-    if (!/^https?:\/\/.+/i.test(baseUrl.trim())) {
+    if (!writeValue(CRED_USERNAME_KEY, u, "用户名已保存")) return;
+    setUsername(u);
+    setSavedUsername(u);
+  }
+
+  function confirmPassword() {
+    if (!password) {
+      onToast("密码不能为空");
+      return;
+    }
+    if (!writeValue(CRED_PASSWORD_KEY, password, "密码已保存")) return;
+    setSavedPassword(password);
+  }
+
+  function confirmBaseUrl() {
+    const u = baseUrl.trim();
+    if (!/^https?:\/\/.+/i.test(u)) {
       onToast("服务器地址需以 http(s):// 开头");
       return;
     }
-    try {
-      localStorage.setItem(CRED_USERNAME_KEY, u);
-      localStorage.setItem(CRED_PASSWORD_KEY, password);
-      localStorage.setItem(BASE_URL_KEY, baseUrl.trim() || DEFAULT_BASE_URL);
-      localStorage.setItem(STARTUP_MODE_KEY, startupMode);
-      setDirty(false);
-      onToast("设置已保存");
-    } catch {
-      onToast("保存失败：本地存储不可用");
-    }
+    if (!writeValue(BASE_URL_KEY, u, "服务器地址已保存")) return;
+    setBaseUrl(u);
+    setSavedBaseUrl(u);
   }
 
   if (!open) return null;
+
+  const usernameDirty = username !== savedUsername;
+  const passwordDirty = password !== savedPassword;
+  const baseUrlDirty = baseUrl.trim() !== savedBaseUrl;
 
   return (
     <div className="settings-overlay" onClick={onClose}>
@@ -150,17 +182,36 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
             <p className="settings-section__desc">用于校园网认证，仅保存在本机。</p>
             <label className="settings-field">
               <span className="settings-field__label">用户名</span>
-              <input
-                className="settings-field__input"
-                type="text"
-                value={username}
-                onChange={(e) => {
-                  setUsername(e.target.value);
-                  setDirty(true);
-                }}
-                placeholder="学号 / 工号"
-                autoComplete="username"
-              />
+              <span className="settings-field__row">
+                <input
+                  className="settings-field__input"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="学号 / 工号"
+                  autoComplete="username"
+                />
+                {usernameDirty && (
+                  <span className="settings-field__actions">
+                    <button
+                      type="button"
+                      className="settings-field__confirm"
+                      onClick={confirmUsername}
+                      aria-label="确认保存用户名"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-field__cancel"
+                      onClick={() => setUsername(savedUsername)}
+                      aria-label="撤销用户名修改"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )}
+              </span>
             </label>
             <label className="settings-field">
               <span className="settings-field__label">密码</span>
@@ -169,10 +220,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
                   className="settings-field__input"
                   type={showPwd ? "text" : "password"}
                   value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setDirty(true);
-                  }}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete="current-password"
                 />
@@ -184,6 +232,26 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
                 >
                   {showPwd ? "🙈" : "👁"}
                 </button>
+                {passwordDirty && (
+                  <span className="settings-field__actions">
+                    <button
+                      type="button"
+                      className="settings-field__confirm"
+                      onClick={confirmPassword}
+                      aria-label="确认保存密码"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-field__cancel"
+                      onClick={() => setPassword(savedPassword)}
+                      aria-label="撤销密码修改"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )}
               </span>
             </label>
           </section>
@@ -191,21 +259,40 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
           <section className="settings-section">
             <h3 className="settings-section__title">认证服务器</h3>
             <p className="settings-section__desc">
-              深澜网关地址，一般不需要改动；更换学校 / 测试环境时再调整。
+              深澜网关地址，一般不需要改动。
             </p>
             <label className="settings-field">
               <span className="settings-field__label">服务器地址</span>
-              <input
-                className="settings-field__input"
-                type="text"
-                value={baseUrl}
-                onChange={(e) => {
-                  setBaseUrl(e.target.value);
-                  setDirty(true);
-                }}
-                placeholder={DEFAULT_BASE_URL}
-                spellCheck={false}
-              />
+              <span className="settings-field__row">
+                <input
+                  className="settings-field__input"
+                  type="text"
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder={DEFAULT_BASE_URL}
+                  spellCheck={false}
+                />
+                {baseUrlDirty && (
+                  <span className="settings-field__actions">
+                    <button
+                      type="button"
+                      className="settings-field__confirm"
+                      onClick={confirmBaseUrl}
+                      aria-label="确认保存服务器地址"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-field__cancel"
+                      onClick={() => setBaseUrl(savedBaseUrl)}
+                      aria-label="撤销服务器地址修改"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )}
+              </span>
             </label>
           </section>
 
@@ -241,7 +328,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
                       checked={startupMode === o.value}
                       onChange={() => {
                         setStartupMode(o.value);
-                        setDirty(true);
+                        writeValue(STARTUP_MODE_KEY, o.value, `启动行为已设为「${o.label}」`);
                       }}
                     />
                     <span className="settings-option__label">{o.label}</span>
@@ -252,16 +339,6 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
             </div>
           </section>
         </div>
-
-        <footer className="settings-drawer__footer">
-          <button
-            type="button"
-            className={`settings-save${dirty ? " settings-save--active" : ""}`}
-            onClick={save}
-          >
-            保存设置
-          </button>
-        </footer>
       </aside>
     </div>
   );

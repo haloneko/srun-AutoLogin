@@ -74,22 +74,28 @@ export default function HeroButton({ status, disabled, onClick }: HeroButtonProp
   const live = status === "success";
   const showOrb = busy || live;
   return (
-    <button
-      type="button"
-      className={`hero hero--${status}`}
-      onClick={onClick}
-      disabled={disabled}
-      title={live ? "点击退出登录" : "点击登录"}
-      aria-label={live ? "退出登录" : "登录"}
-    >
-      <span className={`hero-visual${showOrb ? " hero-visual--orb" : ""}`}>
-        {showOrb ? <Orb /> : <Ring />}
-        <span className="hero-badge">
-          <span className="hero-badge__label">{heroLabel(status)}</span>
-          {live && <span className="hero-badge__label hero-badge__label--alt">退出登录</span>}
+    <>
+      <button
+        type="button"
+        className={`hero hero--${status}`}
+        onClick={onClick}
+        disabled={disabled}
+        title={live ? "点击退出登录" : "点击登录"}
+        aria-label={live ? "退出登录" : "登录"}
+      >
+        <span className={`hero-visual${showOrb ? " hero-visual--orb" : ""}`}>
+          {showOrb ? <Orb /> : <Ring />}
+          <span className="hero-badge">
+            <span className="hero-badge__label">{heroLabel(status)}</span>
+            {live && <span className="hero-badge__label hero-badge__label--alt">退出登录</span>}
+          </span>
         </span>
-      </span>
-      {!showOrb && <span className="hero-hint">{heroHint(status)}</span>}
-    </button>
+      </button>
+      {!showOrb && (
+        <span className="hero-hint" aria-hidden>
+          {heroHint(status)}
+        </span>
+      )}
+    </>
   );
 }
