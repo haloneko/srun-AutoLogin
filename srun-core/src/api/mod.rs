@@ -18,6 +18,15 @@ pub fn now_millis() -> String {
         .to_string()
 }
 
+/// 当前秒时间戳（Unix epoch 秒），对应 Python `int(time.time())`
+pub fn now_secs() -> u64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock before UNIX_EPOCH")
+        .as_secs()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -48,14 +57,14 @@ mod tests {
             .and(query_param("callback", "callback"))
             .respond_with(
                 ResponseTemplate::new(200)
-                    .set_body_string(r#"callback({"client_ip":"10.0.0.1","online_ip":"10.0.0.2"})"#),
+                    .set_body_string(r#"callback({"client_ip":"192.0.2.1","online_ip":"192.0.2.2"})"#),
             )
             .mount(&server)
             .await;
         let http = make_http(&server.uri());
         let v = crate::api::user::get_user_info(&http).await.unwrap();
-        assert_eq!(v["client_ip"], "10.0.0.1");
-        assert_eq!(v["online_ip"], "10.0.0.2");
+        assert_eq!(v["client_ip"], "192.0.2.1");
+        assert_eq!(v["online_ip"], "192.0.2.2");
     }
 
     /// `get_challenge` 应传递 username/ip，并解析 challenge 字段
@@ -65,7 +74,7 @@ mod tests {
         Mock::given(method("GET"))
             .and(path("/cgi-bin/get_challenge"))
             .and(query_param("username", "user1"))
-            .and(query_param("ip", "10.0.0.1"))
+            .and(query_param("ip", "192.0.2.1"))
             .and(query_param("callback", "callback"))
             .respond_with(
                 ResponseTemplate::new(200)
@@ -74,7 +83,7 @@ mod tests {
             .mount(&server)
             .await;
         let http = make_http(&server.uri());
-        let v = crate::api::challenge::get_challenge(&http, "user1", "10.0.0.1")
+        let v = crate::api::challenge::get_challenge(&http, "user1", "192.0.2.1")
             .await
             .unwrap();
         assert_eq!(v["challenge"], "abc123");
@@ -91,7 +100,7 @@ mod tests {
             .and(query_param("username", "user1"))
             .respond_with(
                 ResponseTemplate::new(200)
-                    .set_body_string(r#"callback({"error":"ok","online_ip":"10.0.0.1"})"#),
+                    .set_body_string(r#"callback({"error":"ok","online_ip":"192.0.2.1"})"#),
             )
             .mount(&server)
             .await;
@@ -102,7 +111,7 @@ mod tests {
         ];
         let v = crate::api::user::portal(&http, &params).await.unwrap();
         assert_eq!(v["error"], "ok");
-        assert_eq!(v["online_ip"], "10.0.0.1");
+        assert_eq!(v["online_ip"], "192.0.2.1");
     }
 
     /// 服务端返回非 JSONP 格式时应抛 Jsonp 错误

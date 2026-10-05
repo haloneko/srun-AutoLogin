@@ -4,6 +4,7 @@
 
 use serde_json::Value;
 use srun_core::http::SrunHttp;
+use srun_core::status::OnlineStatus;
 
 /// 登录 command：前端 `invoke("srun_login", { username, password })` 调用。
 ///
@@ -17,10 +18,33 @@ async fn srun_login(username: String, password: String) -> Result<Value, String>
         .map_err(|e| e.to_string())
 }
 
+/// 在线状态 command：前端 `invoke("srun_status")` 调用。
+///
+/// 查询 `/cgi-bin/rad_user_info`，返回在线与否、账号、IP、上线时长、已用流量。
+#[tauri::command]
+async fn srun_status() -> Result<OnlineStatus, String> {
+    let http = SrunHttp::new().map_err(|e| e.to_string())?;
+    srun_core::status::get_online_status(&http)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// 注销 command：前端 `invoke("srun_logout")` 调用。
+///
+/// 通过 `/cgi-bin/srun_portal`（action=logout）断开当前连接，
+/// 返回网关原始解析结果（`error` / `error_msg` 等）。
+#[tauri::command]
+async fn srun_logout() -> Result<Value, String> {
+    let http = SrunHttp::new().map_err(|e| e.to_string())?;
+    srun_core::logout::logout(&http)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![srun_login])
+        .invoke_handler(tauri::generate_handler![srun_login, srun_status, srun_logout])
         .run(tauri::generate_context!())
         .expect("Tauri 应用启动失败");
 }

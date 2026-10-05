@@ -26,3 +26,12 @@ pub async fn portal(http: &SrunHttp, params: &[(&str, String)]) -> Result<Value>
     let text = http.get_jsonp("/cgi-bin/srun_portal", &owned).await?;
     parse_jsonp(&text)
 }
+
+/// 设备解绑 / 下线，对应门户 `Portal.js sendLogout`。
+///
+/// GET `/cgi-bin/rad_user_dm?<params>`（参数含 callback、ip、username、time、unbind、sign、_）
+pub async fn dm(http: &SrunHttp, params: &[(&str, String)]) -> Result<Value> {
+    let owned: Vec<(&str, &str)> = params.iter().map(|(k, v)| (*k, v.as_str())).collect();
+    let text = http.get_jsonp("/cgi-bin/rad_user_dm", &owned).await?;
+    parse_jsonp(&text)
+}

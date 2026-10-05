@@ -11,6 +11,8 @@ pub mod http;
 pub mod jsonp;
 pub mod logger;
 pub mod login;
+pub mod logout;
+pub mod status;
 
 #[cfg(test)]
 mod tests {
