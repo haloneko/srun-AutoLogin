@@ -187,4 +187,57 @@ mod tests {
         let b = x_encode(b"stable", b"key");
         assert_eq!(a, b);
     }
+
+    /// 黄金向量：`base64_encode(b"")` 应返回空字符串
+    /// Python: `base64_encode(b"") == ""`
+    #[test]
+    fn base64_encode_empty_returns_empty() {
+        assert_eq!(base64_encode(b""), "");
+    }
+
+    /// 黄金向量：3 字节输入无填充
+    /// Python: `base64_encode(b"abc") == "ZaRk"`
+    #[test]
+    fn base64_encode_abc() {
+        assert_eq!(base64_encode(b"abc"), "ZaRk");
+    }
+
+    /// 黄金向量：1 字节输入补 2 个 `=`
+    /// Python: `base64_encode(b"a") == "Z+=="`
+    #[test]
+    fn base64_encode_single_byte_with_2_pad() {
+        assert_eq!(base64_encode(b"a"), "Z+==");
+    }
+
+    /// 黄金向量：2 字节输入补 1 个 `=`
+    /// Python: `base64_encode(b"ab") == "Za2="`
+    #[test]
+    fn base64_encode_two_bytes_with_1_pad() {
+        assert_eq!(base64_encode(b"ab"), "Za2=");
+    }
+
+    /// 黄金向量：4 字节输入末尾 1 字节补 2 个 `=`
+    /// Python: `base64_encode(b"abcd") == "ZaRk1L=="`
+    #[test]
+    fn base64_encode_four_bytes_with_2_pad() {
+        assert_eq!(base64_encode(b"abcd"), "ZaRk1L==");
+    }
+
+    /// 黄金向量：5 字节输入末尾 2 字节补 1 个 `=`
+    /// Python: `base64_encode(b"abcde") == "ZaRk1CH="`
+    #[test]
+    fn base64_encode_five_bytes_with_1_pad() {
+        assert_eq!(base64_encode(b"abcde"), "ZaRk1CH=");
+    }
+
+    /// 与 x_encode 串联使用（深澜 encrypt_info 实际链路）应稳定可复现
+    #[test]
+    fn base64_encode_after_x_encode_is_stable() {
+        let enc = x_encode(b"hello", b"world");
+        let b64 = base64_encode(&enc);
+        let b64_2 = base64_encode(&enc);
+        assert_eq!(b64, b64_2);
+        // 长度应是 4 的倍数（含填充）
+        assert_eq!(b64.len() % 4, 0);
+    }
 }
