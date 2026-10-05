@@ -3,6 +3,7 @@
 //! 本 crate 封装深澜校园网自动登录的全部业务逻辑（加密、HTTP、登录编排），
 //! 与具体的 UI 层（CLI / Tauri GUI）解耦，便于未来复用。
 
+pub mod api;
 pub mod config;
 pub mod encrypt;
 pub mod error;
