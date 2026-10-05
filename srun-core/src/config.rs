@@ -68,3 +68,51 @@ impl Default for SrunConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 默认重试次数应与 Python `main.py` 中 `range(5)` 一致
+    #[test]
+    fn default_retry_is_5() {
+        assert_eq!(SrunConfig::default().retry, 5);
+        assert_eq!(DEFAULT_RETRY, 5);
+    }
+
+    /// 默认等待秒数应与 Python `main.py` 中 `wait(5, '自动关闭')` 一致
+    #[test]
+    fn default_wait_is_5() {
+        assert_eq!(SrunConfig::default().wait, 5);
+        assert_eq!(DEFAULT_WAIT, 5);
+    }
+
+    /// BASE_URL 应与 Python `config.py` 完全一致（含末尾 `/`）
+    #[test]
+    fn base_url_matches_python() {
+        assert_eq!(BASE_URL, "https://wlrz.sdmu.edu.cn/");
+    }
+
+    /// 自定义 Base64 字母表必须是 64 个字符
+    #[test]
+    fn srun_base64_alpha_has_64_chars() {
+        assert_eq!(SRUN_BASE64_ALPHA.chars().count(), 64);
+    }
+
+    /// 字母表应与 Python `srun_lib.SRUN_BASE64_ALPHA` 完全一致
+    #[test]
+    fn srun_base64_alpha_matches_python() {
+        assert_eq!(
+            SRUN_BASE64_ALPHA,
+            "LVoJPiCN2R8G90yg+hmFHuacZ1OWMnrsSTXkYpUq/3dlbfKwv6xztjI7DeBE45QA"
+        );
+    }
+
+    /// `SrunConfig::default()` 用户名密码应为空，由 CLI 层填充
+    #[test]
+    fn default_credentials_empty() {
+        let cfg = SrunConfig::default();
+        assert!(cfg.username.is_empty());
+        assert!(cfg.password.is_empty());
+    }
+}
