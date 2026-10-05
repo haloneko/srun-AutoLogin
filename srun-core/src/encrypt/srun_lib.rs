@@ -1,10 +1,19 @@
 //! srun_lib - XXTEA 变体（xEncode）与自定义 Base64
 //!
 //! 对应 Python `srun/srun_lib.py`，匹配 Portal.js 的 `s()` / `l()` / `encode()`。
-//! 步骤 5 仅实现 `x_encode`，步骤 6 在本文件追加 `base64_encode`。
+
+use crate::config::SRUN_BASE64_ALPHA;
+use base64::alphabet::Alphabet;
+use base64::engine::general_purpose::GeneralPurposeConfig;
+use base64::engine::GeneralPurpose;
+use base64::Engine;
+use std::sync::OnceLock;
 
 /// XXTEA 算法的 delta 常数（对应 Python `XXTEA_DELTA`）
 const DELTA: u32 = 0x9E3779B9;
+
+/// 缓存自定义字母表，避免每次 `base64_encode` 都重新解析
+static ALPHABET: OnceLock<Alphabet> = OnceLock::new();
 
 /// 对应 Python `_xxtea_str_to_words`：把字节切片按 4 字节小端打包成 u32 数组。
 ///
@@ -79,6 +88,18 @@ pub fn x_encode(data: &[u8], key: &[u8]) -> Vec<u8> {
         v[n] = z;
     }
     xxtea_words_to_bytes(&v)
+}
+
+/// 自定义字母表 Base64 编码，对应 Python `base64_encode`。
+///
+/// 使用 [`SRUN_BASE64_ALPHA`] 作为 64 字符字母表，输出含 `=` 填充
+/// （与标准 Base64 填充规则一致：1 字节输入补 2 个 `=`，2 字节补 1 个 `=`）。
+pub fn base64_encode(data: &[u8]) -> String {
+    let alpha = ALPHABET.get_or_init(|| {
+        Alphabet::new(SRUN_BASE64_ALPHA).expect("SRUN_BASE64_ALPHA 必须是合法 64 字符字母表")
+    });
+    let engine = GeneralPurpose::new(alpha, GeneralPurposeConfig::new().with_encode_padding(true));
+    engine.encode(data)
 }
 
 #[cfg(test)]
