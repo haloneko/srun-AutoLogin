@@ -57,3 +57,80 @@ impl SrunHttp {
         Ok(text)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::USER_AGENT;
+    use wiremock::matchers::{header, method, path, query_param};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    fn make_http(uri: &str) -> SrunHttp {
+        SrunHttp::with_base_url(uri).expect("构造测试 SrunHttp 失败")
+    }
+
+    /// GET 请求应返回响应文本（JSONP 透传不解码）
+    #[tokio::test]
+    async fn get_jsonp_returns_response_text() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/cgi-bin/test"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string("callback({\"ok\":1})"),
+            )
+            .mount(&server)
+            .await;
+        let http = make_http(&server.uri());
+        let text = http.get_jsonp("/cgi-bin/test", &[]).await.unwrap();
+        assert_eq!(text, "callback({\"ok\":1})");
+    }
+
+    /// 应发送所有 query 参数
+    #[tokio::test]
+    async fn get_jsonp_sends_query_params() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/cgi-bin/test"))
+            .and(query_param("a", "1"))
+            .and(query_param("b", "2"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
+            .mount(&server)
+            .await;
+        let http = make_http(&server.uri());
+        let _ = http
+            .get_jsonp("/cgi-bin/test", &[("a", "1"), ("b", "2")])
+            .await
+            .unwrap();
+    }
+
+    /// 应携带统一 User-Agent
+    #[tokio::test]
+    async fn get_jsonp_sends_user_agent() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/cgi-bin/test"))
+            .and(header("user-agent", USER_AGENT))
+            .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
+            .mount(&server)
+            .await;
+        let http = make_http(&server.uri());
+        let _ = http.get_jsonp("/cgi-bin/test", &[]).await.unwrap();
+    }
+
+    /// 服务端返回 4xx/5xx 时 reqwest 默认不抛错，text() 仍返回响应体；
+    /// 错误处理留给上层（api 模块）按 JSONP 解析结果判断
+    #[tokio::test]
+    async fn get_jsonp_returns_body_even_on_4xx() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/cgi-bin/test"))
+            .respond_with(
+                ResponseTemplate::new(404).set_body_string("callback({\"error\":\"not_found\"})"),
+            )
+            .mount(&server)
+            .await;
+        let http = make_http(&server.uri());
+        let text = http.get_jsonp("/cgi-bin/test", &[]).await.unwrap();
+        assert!(text.contains("not_found"));
+    }
+}
