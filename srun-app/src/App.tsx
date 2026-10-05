@@ -90,7 +90,12 @@ export default function App() {
     }, TOAST_DURATION);
   }
 
-  async function refreshStatus(notify = false): Promise<OnlineStatus | null> {
+  /// 刷新在线信息面板。`preserveStatus=true` 时只更新信息数据，不改动大按钮状态
+  /// （用于登录刚成功时：网关数据可能尚未同步，避免把「登录成功」覆盖回「未登录」）。
+  async function refreshStatus(
+    notify = false,
+    preserveStatus = false,
+  ): Promise<OnlineStatus | null> {
     setRefreshing(true);
     try {
       const s = await invoke<OnlineStatus>("srun_status", {
@@ -98,14 +103,16 @@ export default function App() {
       });
       setInfo(s);
       setInfoError("");
-      // 大按钮状态与在线状态同步：已在线 →「已登录」；离线 →「登录」
-      setStatus((prev) =>
-        s.online
-          ? { kind: "success", ip: s.ip, msg: "已在线" }
-          : prev.kind === "loading"
-            ? prev
-            : { kind: "idle" }
-      );
+      // 大按钮状态与在线状态同步：已在线 →「已连接」；离线 →「未登录」
+      if (!preserveStatus) {
+        setStatus((prev) =>
+          s.online
+            ? { kind: "success", ip: s.ip, msg: "已在线" }
+            : prev.kind === "loading"
+              ? prev
+              : { kind: "idle" }
+        );
+      }
       // 记录最近一次在线状态，供「记录过去状态」启动模式使用
       writeLastOnline(s.online);
       if (notify) showToast(s.online ? "状态已更新" : "状态已更新（离线）");
@@ -188,7 +195,9 @@ export default function App() {
           ip,
           msg: res.suc_msg || "登录成功",
         });
-        refreshStatus();
+        showToast("登录成功");
+        // 仅刷新信息面板，保留「已连接」成功状态（网关数据可能尚未同步）
+        void refreshStatus(false, true);
       } else {
         setStatus({
           kind: "fail",
