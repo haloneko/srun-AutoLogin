@@ -1,0 +1,297 @@
+/* ===== 设置抽屉（右侧滑出 + 遮罩） ===== */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  animation: settings-fade 0.2s ease;
+}
+
+.settings-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(360px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border-left: 1px solid var(--border);
+  box-shadow: -16px 0 40px rgba(0, 0, 0, 0.18);
+  animation: settings-slide 0.26s cubic-bezier(0.21, 1.02, 0.73, 1);
+}
+
+@keyframes settings-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes settings-slide {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.settings-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-drawer__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.settings-drawer__close {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-2);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.settings-drawer__close:hover {
+  color: var(--text-1);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.settings-drawer__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 18px 12px;
+}
+
+/* ===== 分区 ===== */
+.settings-section {
+  padding: 14px 0;
+}
+
+.settings-section + .settings-section {
+  border-top: 1px solid var(--border);
+}
+
+.settings-section__title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.settings-section__desc {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ===== 表单字段 ===== */
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.settings-field:first-of-type {
+  margin-top: 0;
+}
+
+.settings-field--row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-field__label {
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-field__hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.settings-field__row {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-field__input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.settings-field__input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.15);
+}
+
+.settings-field__eye {
+  width: 40px;
+  flex-shrink: 0;
+  font-size: 15px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.settings-field__eye:hover {
+  border-color: var(--accent);
+}
+
+/* ===== 启动行为三选 ===== */
+.settings-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.settings-option__radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settings-option__label {
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-option__label::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.settings-option__desc {
+  font-size: 11px;
+  color: var(--muted);
+  padding-left: 22px;
+}
+
+.settings-option--on {
+  border-color: var(--accent);
+  background: rgba(30, 136, 229, 0.06);
+  box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.12);
+}
+
+.settings-option--on .settings-option__label::before {
+  border-color: var(--accent);
+  border-width: 5px;
+}
+
+/* ===== 开关 ===== */
+.settings-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  padding: 0;
+  background: var(--border);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.settings-switch__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s;
+}
+
+.settings-switch--on {
+  background: var(--accent);
+}
+
+.settings-switch--on .settings-switch__knob {
+  transform: translateX(20px);
+}
+
+/* ===== 底部保存 ===== */
+.settings-drawer__footer {
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-save {
+  width: 100%;
+  padding: 11px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--border);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.settings-save--active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  box-shadow: 0 8px 20px rgba(30, 136, 229, 0.3);
+}
+
+.settings-save--active:hover {
+  box-shadow: 0 10px 26px rgba(30, 136, 229, 0.4);
+}

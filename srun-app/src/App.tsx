@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import HeroButton from "./HeroButton";
+import SettingsPanel, { readBaseUrl, readStartupMode, writeLastOnline } from "./SettingsPanel";
 
 /// srun_portal 登录响应中的关键字段
 interface LoginResult {
@@ -76,6 +77,7 @@ export default function App() {
   const [info, setInfo] = useState<OnlineStatus | null>(null);
   const [infoError, setInfoError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastId = useRef(0);
 
@@ -88,10 +90,12 @@ export default function App() {
     }, TOAST_DURATION);
   }
 
-  async function refreshStatus(notify = false) {
+  async function refreshStatus(notify = false): Promise<OnlineStatus | null> {
     setRefreshing(true);
     try {
-      const s = await invoke<OnlineStatus>("srun_status");
+      const s = await invoke<OnlineStatus>("srun_status", {
+        baseUrl: readBaseUrl(),
+      });
       setInfo(s);
       setInfoError("");
       // 大按钮状态与在线状态同步：已在线 →「已登录」；离线 →「登录」
@@ -102,18 +106,34 @@ export default function App() {
             ? prev
             : { kind: "idle" }
       );
+      // 记录最近一次在线状态，供「记录过去状态」启动模式使用
+      writeLastOnline(s.online);
       if (notify) showToast(s.online ? "状态已更新" : "状态已更新（离线）");
+      return s;
     } catch (err) {
       setInfoError(String(err));
       if (notify) showToast(`刷新失败：${String(err)}`);
+      return null;
     } finally {
       setRefreshing(false);
     }
   }
 
-  // 应用打开时从网站查询一次当前在线状态，并同步按钮/信息面板
+  // 应用打开时查询当前在线状态，并按启动模式决定是否自动登录
   useEffect(() => {
-    refreshStatus();
+    (async () => {
+      const mode = readStartupMode();
+      const hasCred =
+        readCredential(CRED_USERNAME_KEY).trim() && readCredential(CRED_PASSWORD_KEY);
+      // 「记录过去状态」：以上次记录的在线状态为准（先于本次刷新读取）
+      const lastOnline = localStorage.getItem("srun.lastOnline") === "1";
+      const s = await refreshStatus();
+      const shouldAuto =
+        hasCred && (mode === "auto" || (mode === "remember" && lastOnline));
+      if (s && !s.online && shouldAuto) {
+        void handleLogin();
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -121,7 +141,7 @@ export default function App() {
     if (status.kind === "loggingOut") return;
     setStatus({ kind: "loggingOut" });
     try {
-      const res = (await invoke("srun_logout")) as {
+      const res = (await invoke("srun_logout", { baseUrl: readBaseUrl() })) as {
         error: string;
         error_msg?: string;
       };
@@ -159,6 +179,7 @@ export default function App() {
       const res = (await invoke("srun_login", {
         username,
         password,
+        baseUrl: readBaseUrl(),
       })) as LoginResult;
       if (res.error === "ok") {
         const ip = res.client_ip || res.online_ip || "";
@@ -188,7 +209,7 @@ export default function App() {
         <button
           type="button"
           className="icon-btn"
-          onClick={() => showToast("设置功能即将上线，敬请期待")}
+          onClick={() => setSettingsOpen(true)}
           title="设置"
           aria-label="设置"
         >
@@ -223,6 +244,12 @@ export default function App() {
           ))}
         </div>
       )}
+
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onToast={showToast}
+      />
       <main className="home">
         <HeroButton
           status={status.kind}
