@@ -120,15 +120,15 @@ mod tests {
     /// `extract_ip` 应优先取 `client_ip`
     #[test]
     fn extract_ip_prefers_client_ip() {
-        let v = json!({"client_ip": "10.0.0.1", "online_ip": "10.0.0.2"});
-        assert_eq!(extract_ip(&v), "10.0.0.1");
+        let v = json!({"client_ip": "192.0.2.1", "online_ip": "192.0.2.2"});
+        assert_eq!(extract_ip(&v), "192.0.2.1");
     }
 
     /// `extract_ip` 缺少 `client_ip` 时取 `online_ip`
     #[test]
     fn extract_ip_falls_back_to_online_ip() {
-        let v = json!({"online_ip": "10.0.0.2"});
-        assert_eq!(extract_ip(&v), "10.0.0.2");
+        let v = json!({"online_ip": "192.0.2.2"});
+        assert_eq!(extract_ip(&v), "192.0.2.2");
     }
 
     /// `extract_ip` 两个字段都缺时返回空字符串
@@ -141,7 +141,7 @@ mod tests {
     /// `build_login_request` 应生成所有必需字段（与 Python `login_params` 对齐）
     #[test]
     fn build_login_request_includes_all_required_fields() {
-        let params = build_login_request("user1", "pass1", "10.0.0.1", "abc123").unwrap();
+        let params = build_login_request("user1", "pass1", "192.0.2.1", "abc123").unwrap();
         let keys: Vec<&str> = params.iter().map(|(k, _)| k.as_str()).collect();
         for required in [
             "callback", "action", "username", "password", "ac_id", "ip", "chksum", "info",
@@ -154,7 +154,7 @@ mod tests {
     /// `password` 字段值应以 `{MD5}` 前缀开头
     #[test]
     fn build_login_request_password_has_md5_prefix() {
-        let params = build_login_request("user1", "pass1", "10.0.0.1", "abc123").unwrap();
+        let params = build_login_request("user1", "pass1", "192.0.2.1", "abc123").unwrap();
         let pw = params.iter().find(|(k, _)| k == "password").map(|(_, v)| v.clone()).unwrap();
         assert!(pw.starts_with("{MD5}"), "got: {pw}");
         // 后半段应为 32 位 hex（HmacMD5 → 16 字节 → 32 hex 字符）
@@ -164,7 +164,7 @@ mod tests {
     /// `info` 字段值应以 `{SRBX1}` 前缀开头
     #[test]
     fn build_login_request_info_has_srbx1_prefix() {
-        let params = build_login_request("user1", "pass1", "10.0.0.1", "abc123").unwrap();
+        let params = build_login_request("user1", "pass1", "192.0.2.1", "abc123").unwrap();
         let info = params.iter().find(|(k, _)| k == "info").map(|(_, v)| v.clone()).unwrap();
         assert!(info.starts_with("{SRBX1}"), "got: {info}");
     }
@@ -172,7 +172,7 @@ mod tests {
     /// `chksum` 字段值长度应为 40（SHA1 hex）
     #[test]
     fn build_login_request_chksum_len_is_40() {
-        let params = build_login_request("user1", "pass1", "10.0.0.1", "abc123").unwrap();
+        let params = build_login_request("user1", "pass1", "192.0.2.1", "abc123").unwrap();
         let chksum = params.iter().find(|(k, _)| k == "chksum").map(|(_, v)| v.clone()).unwrap();
         assert_eq!(chksum.len(), 40);
     }
@@ -208,7 +208,7 @@ mod tests {
             .and(path("/cgi-bin/rad_user_info"))
             .respond_with(
                 ResponseTemplate::new(200)
-                    .set_body_string(r#"callback({"client_ip":"10.0.0.1"})"#),
+                    .set_body_string(r#"callback({"client_ip":"192.0.2.1"})"#),
             )
             .mount(&server)
             .await;
@@ -216,7 +216,7 @@ mod tests {
         Mock::given(method("GET"))
             .and(path("/cgi-bin/get_challenge"))
             .and(query_param("username", "user1"))
-            .and(query_param("ip", "10.0.0.1"))
+            .and(query_param("ip", "192.0.2.1"))
             .respond_with(
                 ResponseTemplate::new(200)
                     .set_body_string(r#"callback({"challenge":"abc123","error":"ok"})"#),
@@ -233,7 +233,7 @@ mod tests {
             .and(query_param("type", "1"))
             .respond_with(
                 ResponseTemplate::new(200)
-                    .set_body_string(r#"callback({"error":"ok","online_ip":"10.0.0.1"})"#),
+                    .set_body_string(r#"callback({"error":"ok","online_ip":"192.0.2.1"})"#),
             )
             .mount(&server)
             .await;
@@ -241,7 +241,7 @@ mod tests {
         let http = make_http(&base);
         let res = login(&http, "user1", "pass1").await.unwrap();
         assert_eq!(res["error"], "ok");
-        assert_eq!(res["online_ip"], "10.0.0.1");
+        assert_eq!(res["online_ip"], "192.0.2.1");
     }
 
     /// `user_info` 缺少 ip 字段时应返回 MissingField 错误
@@ -265,7 +265,7 @@ mod tests {
         Mock::given(method("GET"))
             .and(path("/cgi-bin/rad_user_info"))
             .respond_with(
-                ResponseTemplate::new(200).set_body_string(r#"callback({"client_ip":"10.0.0.1"})"#),
+                ResponseTemplate::new(200).set_body_string(r#"callback({"client_ip":"192.0.2.1"})"#),
             )
             .mount(&server)
             .await;

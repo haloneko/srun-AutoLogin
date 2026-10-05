@@ -1,0 +1,204 @@
+/* ===== 大登录按钮（HeroButton 专属样式） ===== */
+
+.hero {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  margin-top: -30px; /* 整体比原布局上移一点 */
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    filter 0.2s,
+    transform 0.08s;
+}
+
+.hero:disabled {
+  cursor: wait;
+}
+
+.hero:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* ---- 视觉容器：svg + 球心文字叠放 ---- */
+
+.hero-visual {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-orb__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ---- 线框圆（未登录 / 失败 / 出错） ---- */
+
+.hero-ring__circle {
+  fill: none;
+  stroke: #9ca3af; /* 未登录：灰色线框，不填充 */
+  stroke-width: 3;
+  transition: stroke 0.3s;
+}
+
+.hero:hover:not(:disabled) .hero-ring__circle {
+  stroke: #6b7280;
+}
+
+.hero--fail .hero-ring__circle {
+  stroke: #f59e0b;
+}
+
+.hero--error .hero-ring__circle {
+  stroke: #ef4444;
+}
+
+/* ---- 缠绕线框球体（登录中 / 注销中 / 已连接） ---- */
+
+/* 状态配色 */
+.hero--loading,
+.hero--loggingOut {
+  --core-hi: #a5f3fc;
+  --core-lo: #2563eb;
+  --hero-accent: #38bdf8;
+  --hero-text: #0ea5e9;
+}
+
+.hero--success {
+  --core-hi: #86efac;
+  --core-lo: #16a34a;
+  --hero-accent: #22c55e;
+  --hero-text: #16a34a;
+}
+
+/* 已连接：整体上下浮动 */
+.hero--success .hero-visual {
+  animation: orb-float 3.4s ease-in-out infinite;
+}
+
+/* 登录中 / 注销中：启动光晕脉冲 */
+.hero--loading .hero-visual,
+.hero--loggingOut .hero-visual {
+  animation: start-breathe 1.6s ease-in-out infinite;
+}
+
+/* 中心球体 */
+.hero-orb__core {
+  fill: url(#hero-core-grad);
+  opacity: 0.92;
+  filter: drop-shadow(0 0 18px var(--hero-accent));
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  animation: core-breathe 2.8s ease-in-out infinite;
+}
+
+@keyframes core-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.045);
+  }
+}
+
+@keyframes orb-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+@keyframes start-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.82;
+  }
+  50% {
+    transform: scale(1.035);
+    opacity: 1;
+  }
+}
+
+/* ---- 球心文字 ---- */
+
+.hero-badge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.hero-badge__label {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--hero-text, #6b7280);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+  transition:
+    color 0.3s,
+    opacity 0.2s;
+}
+
+.hero--idle .hero-badge__label {
+  color: #6b7280;
+}
+
+.hero--fail .hero-badge__label {
+  color: #d97706;
+}
+
+.hero--error .hero-badge__label {
+  color: #b91c1c;
+}
+
+/* 已连接 ⇄ 退出登录：悬浮切换 */
+.hero-badge__label--alt {
+  position: absolute;
+  opacity: 0;
+  color: #b91c1c;
+}
+
+.hero--success:hover .hero-badge__label {
+  opacity: 0;
+}
+
+.hero--success:hover .hero-badge__label--alt {
+  opacity: 1;
+}
+
+/* ---- 按钮下方提示 ---- */
+
+.hero-hint {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted, #6b7280);
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 12px;
+}
