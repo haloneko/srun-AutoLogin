@@ -6,6 +6,7 @@
 pub mod config;
 pub mod error;
 pub mod jsonp;
+pub mod logger;
 
 #[cfg(test)]
 mod tests {

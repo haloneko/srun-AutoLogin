@@ -8,3 +8,5 @@ thiserror = "1"
 serde_json = "1"
 # serde 仅用于派生 Serialize，步骤 7 起 LoginInfo 等结构需要
 serde = { version = "1", features = ["derive"] }
+# 时间戳，对应 Python datetime.now().strftime("%H:%M:%S")
+chrono = "0.4"
