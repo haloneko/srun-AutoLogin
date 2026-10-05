@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 srun-core = { path = "../srun-core" }
+clap = { version = "4", features = ["derive"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+anyhow = "1"
+
