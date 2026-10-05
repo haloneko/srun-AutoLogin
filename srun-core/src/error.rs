@@ -37,3 +37,45 @@ pub enum SrunError {
 
 /// 模块内统一 Result 别名
 pub type Result<T> = std::result::Result<T, SrunError>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `Http` 变体 Display 输出应包含「HTTP 请求失败」前缀与具体描述
+    #[test]
+    fn http_display_contains_message() {
+        let e = SrunError::Http("连接超时".to_string());
+        let s = e.to_string();
+        assert!(s.contains("HTTP 请求失败"), "got: {s}");
+        assert!(s.contains("连接超时"), "got: {s}");
+    }
+
+    /// `Jsonp` 变体 Display 输出应包含「JSONP 解析失败」前缀与具体描述
+    #[test]
+    fn jsonp_display_contains_message() {
+        let e = SrunError::Jsonp("响应中无左括号".to_string());
+        let s = e.to_string();
+        assert!(s.contains("JSONP 解析失败"), "got: {s}");
+        assert!(s.contains("响应中无左括号"), "got: {s}");
+    }
+
+    /// `MissingField` 变体应输出对应字段名
+    #[test]
+    fn missing_field_display() {
+        let e = SrunError::MissingField("client_ip");
+        let s = e.to_string();
+        assert!(s.contains("client_ip"), "got: {s}");
+        assert!(s.contains("缺少必需字段"), "got: {s}");
+    }
+
+    /// `serde_json::Error` 应能通过 `?` / `From` 转换为 `SrunError::Json`
+    #[test]
+    fn json_from_serde_json_error() {
+        let json_err = serde_json::from_str::<serde_json::Value>("bad json").unwrap_err();
+        let e: SrunError = json_err.into();
+        assert!(matches!(e, SrunError::Json(_)), "got: {e:?}");
+        let s = e.to_string();
+        assert!(s.contains("JSON 处理失败"), "got: {s}");
+    }
+}
