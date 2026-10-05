@@ -259,7 +259,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
           <section className="settings-section">
             <h3 className="settings-section__title">认证服务器</h3>
             <p className="settings-section__desc">
-              深澜网关地址，一般不需要改动；更换学校 / 测试环境时再调整。
+              深澜网关地址，一般不需要改动。
             </p>
             <label className="settings-field">
               <span className="settings-field__label">服务器地址</span>

@@ -80,6 +80,22 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastId = useRef(0);
+  /// 登录成功后延迟查询在线状态的定时器（网关数据同步有延迟）
+  const loginCheckTimer = useRef<number | null>(null);
+
+  /// 登录成功后延迟 2s 查询在线状态，若网关尚未同步（仍离线）则每隔 2s 重查，最多 retries 次
+  function schedulePostLoginCheck(retries = 3) {
+    if (loginCheckTimer.current) {
+      window.clearTimeout(loginCheckTimer.current);
+    }
+    loginCheckTimer.current = window.setTimeout(async () => {
+      loginCheckTimer.current = null;
+      const s = await refreshStatus(false, true);
+      if (s && !s.online && retries > 0) {
+        schedulePostLoginCheck(retries - 1);
+      }
+    }, 2000);
+  }
 
   /// 显示一条条形通知：新的显示在最上方，旧的被顶下去，各自带消失进度条
   function showToast(msg: string) {
@@ -146,6 +162,11 @@ export default function App() {
 
   async function handleLogout() {
     if (status.kind === "loggingOut") return;
+    // 取消登录成功后挂起的延迟重查，避免其把状态卡片改回「在线」
+    if (loginCheckTimer.current) {
+      window.clearTimeout(loginCheckTimer.current);
+      loginCheckTimer.current = null;
+    }
     setStatus({ kind: "loggingOut" });
     try {
       const res = (await invoke("srun_logout", { baseUrl: readBaseUrl() })) as {
@@ -196,8 +217,8 @@ export default function App() {
           msg: res.suc_msg || "登录成功",
         });
         showToast("登录成功");
-        // 仅刷新信息面板，保留「已连接」成功状态（网关数据可能尚未同步）
-        void refreshStatus(false, true);
+        // 网关数据同步有延迟：延迟 2s 再查询状态栏，离线则自动重查，避免状态卡片停在「离线」
+        schedulePostLoginCheck();
       } else {
         setStatus({
           kind: "fail",
