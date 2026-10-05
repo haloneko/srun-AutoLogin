@@ -93,3 +93,102 @@ pub fn print_log(msg: &str, detail: &str, level: Level, rewrite: bool) {
         println!("{line}");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `Info` 级别输出含 ` INFO ` 徽章与消息内容
+    #[test]
+    fn format_log_info_label() {
+        let s = format_log("登录中", "", Level::Info);
+        assert!(s.contains(" INFO "), "got: {s}");
+        assert!(s.contains("登录中"), "got: {s}");
+    }
+
+    /// `Done` 级别输出含 ` DONE ` 徽章，并保留 detail
+    #[test]
+    fn format_log_done_label_with_detail() {
+        let s = format_log("登录成功", "user:12345", Level::Done);
+        assert!(s.contains(" DONE "), "got: {s}");
+        assert!(s.contains("user:12345"), "got: {s}");
+    }
+
+    /// `Warn` 级别输出含 ` WARN ` 徽章
+    #[test]
+    fn format_log_warn_label() {
+        let s = format_log("重试中", "", Level::Warn);
+        assert!(s.contains(" WARN "), "got: {s}");
+    }
+
+    /// `Error` 级别输出含 ` ERROR ` 徽章
+    #[test]
+    fn format_log_error_label() {
+        let s = format_log("登录失败", "", Level::Error);
+        assert!(s.contains(" ERROR "), "got: {s}");
+    }
+
+    /// 输出应包含 `[HH:MM:SS]` 时间戳（长度恰为 10）
+    #[test]
+    fn format_log_contains_timestamp_brackets() {
+        let s = format_log("x", "", Level::Info);
+        // 时间戳前后有空格，故查找 " [" 与匹配的 "]"
+        let open = s.find(" [").map(|i| i + 1);
+        assert!(open.is_some(), "got: {s}");
+        if let Some(i) = open {
+            let close = s[i..].find(']').map(|j| i + j);
+            assert!(close.is_some(), "got: {s}");
+            if let Some(j) = close {
+                let ts = &s[i..=j];
+                assert_eq!(ts.len(), 10, "got: {ts}");
+                assert!(ts.starts_with('['), "got: {ts}");
+                assert!(ts.ends_with(']'), "got: {ts}");
+            }
+        }
+    }
+
+    /// 输出应包含 ANSI 颜色转义码（与 Python colorama 等价）
+    #[test]
+    fn format_log_includes_ansi_color_codes() {
+        let s = format_log("x", "", Level::Info);
+        assert!(s.contains("\x1b["), "got: {s}");
+        assert!(s.contains("\x1b[0m"), "got: {s}");
+    }
+
+    /// Info 徽章应为蓝色背景 `\x1b[44m`
+    #[test]
+    fn info_badge_is_blue_bg() {
+        let s = format_log("x", "", Level::Info);
+        assert!(s.contains("\x1b[44m"), "got: {s}");
+    }
+
+    /// Error 徽章应为红色背景 `\x1b[41m`
+    #[test]
+    fn error_badge_is_red_bg() {
+        let s = format_log("x", "", Level::Error);
+        assert!(s.contains("\x1b[41m"), "got: {s}");
+    }
+
+    /// `rewrite=true` 输出应以 `\r\x1b[2K` 开头
+    #[test]
+    fn format_line_rewrite_starts_with_clear_seq() {
+        let s = format_line("等待 5 秒", "", Level::Info, true);
+        assert!(s.starts_with("\r\x1b[2K"), "got: {s}");
+        assert!(s.contains("等待 5 秒"), "got: {s}");
+    }
+
+    /// `rewrite=false` 输出不应以 `\r\x1b[2K` 开头
+    #[test]
+    fn format_line_no_rewrite_does_not_start_with_clear_seq() {
+        let s = format_line("等待 5 秒", "", Level::Info, false);
+        assert!(!s.starts_with("\r\x1b[2K"), "got: {s}");
+    }
+
+    /// 空 detail 时输出仍应保留尾部空格（与 Python `f'... {detail}'` 行为对齐）：
+    /// detail 部分会变成 `空格 + 颜色码 + 立即 reset`。
+    #[test]
+    fn format_log_empty_detail_keeps_trailing_space() {
+        let s = format_log("msg", "", Level::Info);
+        assert!(s.ends_with(" \x1b[36m\x1b[0m"), "got: {s}");
+    }
+}
