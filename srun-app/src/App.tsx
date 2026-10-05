@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import HeroButton from "./HeroButton";
 
 /// srun_portal 登录响应中的关键字段
 interface LoginResult {
@@ -37,55 +38,6 @@ function readCredential(key: string): string {
     return localStorage.getItem(key) ?? "";
   } catch {
     return "";
-  }
-}
-
-function statusTitle(status: Status): string {
-  switch (status.kind) {
-    case "idle":
-      return "登录";
-    case "loading":
-      return "登录中…";
-    case "loggingOut":
-      return "注销中…";
-    case "success":
-      return "退出登录";
-    case "fail":
-      return "登录失败";
-    case "error":
-      return "出错";
-  }
-}
-
-function statusHint(status: Status): string {
-  switch (status.kind) {
-    case "idle":
-      return "点击一键登录";
-    case "loading":
-      return "正在连接认证网关…";
-    case "loggingOut":
-      return "正在断开连接…";
-    case "success":
-      return status.ip ? `IP：${status.ip}` : status.msg || "连接成功";
-    case "fail":
-      return status.msg || status.error;
-    case "error":
-      return status.msg;
-  }
-}
-
-function statusIcon(status: Status): string {
-  switch (status.kind) {
-    case "success":
-      return "⇤";
-    case "fail":
-    case "error":
-      return "✕";
-    case "loading":
-    case "loggingOut":
-      return "";
-    default:
-      return "⏻";
   }
 }
 
@@ -153,7 +105,8 @@ export default function App() {
         error_msg?: string;
       };
       if (res.error === "ok") {
-        // 注销成功后回查真实状态，同步按钮与信息面板
+        // 注销成功后间隔 0.5s 再回查真实状态，等待网关侧状态刷新
+        await new Promise((r) => setTimeout(r, 500));
         await refreshStatus();
       } else {
         setStatus({ kind: "error", msg: res.error_msg || res.error || "注销失败" });
@@ -221,23 +174,11 @@ export default function App() {
         ⟳
       </button>
       <main className="home">
-        <button
-          type="button"
-          className={`hero hero--${status.kind}`}
-          onClick={handleButtonClick}
+        <HeroButton
+          status={status.kind}
           disabled={status.kind === "loading" || status.kind === "loggingOut"}
-          title={status.kind === "success" ? "点击退出登录" : "点击登录"}
-        >
-          {status.kind === "loading" || status.kind === "loggingOut" ? (
-            <span className="hero__spinner" aria-hidden />
-          ) : (
-            <span className="hero__icon" aria-hidden>
-              {statusIcon(status)}
-            </span>
-          )}
-          <span className="hero__title">{statusTitle(status)}</span>
-          <span className="hero__hint">{statusHint(status)}</span>
-        </button>
+          onClick={handleButtonClick}
+        />
 
         <section className="status-card" aria-label="网络状态">
           <div className="status-grid">
