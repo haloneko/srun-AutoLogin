@@ -379,7 +379,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
 
           <section className="settings-section">
             <h3 className="settings-section__title">通用</h3>
-            <label className="settings-field settings-field--row">
+            <div className="settings-field settings-field--row">
               <span className="settings-field__label">
                 开机自启动
                 <span className="settings-field__hint">开机后自动运行本程序</span>
@@ -393,8 +393,8 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
               >
                 <span className="settings-switch__knob" />
               </button>
-            </label>
-            <label className="settings-field settings-field--row">
+            </div>
+            <div className="settings-field settings-field--row">
               <span className="settings-field__label">
                 静默启动
                 <span className="settings-field__hint">
@@ -410,7 +410,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
               >
                 <span className="settings-switch__knob" />
               </button>
-            </label>
+            </div>
             <div className="settings-field">
               <span className="settings-field__label">启动时行为</span>
               <div className="settings-options">
