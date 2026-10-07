@@ -69,7 +69,6 @@ pub fn x_encode(data: &[u8], key: &[u8]) -> Vec<u8> {
         return xxtea_words_to_bytes(&v);
     }
     let mut z = v[n];
-    let mut y = v[0];
     let n_u32 = n as u32;
     let q = 6 + 52 / (n_u32 + 1);
     let mut d: u32 = 0;
@@ -78,17 +77,17 @@ pub fn x_encode(data: &[u8], key: &[u8]) -> Vec<u8> {
         let e = (d >> 2) & 3;
         for p in 0..n {
             let p_u32 = p as u32;
-            y = v[p + 1];
+            let y = v[p + 1];
             let mut m = (z >> 5) ^ (y << 2);
             m = m.wrapping_add((y >> 3) ^ (z << 4) ^ (d ^ y));
-            m = m.wrapping_add(k[(((p_u32 & 3) ^ e) as usize)] ^ z);
+            m = m.wrapping_add(k[((p_u32 & 3) ^ e) as usize] ^ z);
             z = v[p].wrapping_add(m);
             v[p] = z;
         }
-        y = v[0];
+        let y = v[0];
         let mut m = (z >> 5) ^ (y << 2);
         m = m.wrapping_add((y >> 3) ^ (z << 4) ^ (d ^ y));
-        m = m.wrapping_add(k[(((n_u32 & 3) ^ e) as usize)] ^ z);
+        m = m.wrapping_add(k[((n_u32 & 3) ^ e) as usize] ^ z);
         z = v[n].wrapping_add(m);
         v[n] = z;
     }
