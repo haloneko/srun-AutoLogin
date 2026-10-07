@@ -1,7 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import HeroButton from "./HeroButton";
-import SettingsPanel, { readBaseUrl, readStartupMode, writeLastOnline } from "./SettingsPanel";
+import SettingsPanel from "./SettingsPanel";
+import { IconClose, IconGear, IconRefresh } from "./icons/Icons";
+import {
+  applyTheme,
+  readSilentStart,
+  readStartupMode,
+  readTheme,
+  toLoginOptions,
+  writeLastOnline,
+} from "./settings";
 
 /// srun_portal 登录响应中的关键字段
 interface LoginResult {
@@ -115,7 +125,7 @@ export default function App() {
     setRefreshing(true);
     try {
       const s = await invoke<OnlineStatus>("srun_status", {
-        baseUrl: readBaseUrl(),
+        options: toLoginOptions(),
       });
       setInfo(s);
       setInfoError("");
@@ -144,6 +154,12 @@ export default function App() {
 
   // 应用打开时查询当前在线状态，并按启动模式决定是否自动登录
   useEffect(() => {
+    applyTheme(readTheme());
+    // 窗口默认隐藏（tauri.conf.json visible:false）：静默启动开启则保持托盘驻留，
+    // 开发模式或关闭静默启动时显示主窗口
+    if (import.meta.env.DEV || !readSilentStart()) {
+      void getCurrentWindow().show();
+    }
     (async () => {
       const mode = readStartupMode();
       const hasCred =
@@ -169,7 +185,9 @@ export default function App() {
     }
     setStatus({ kind: "loggingOut" });
     try {
-      const res = (await invoke("srun_logout", { baseUrl: readBaseUrl() })) as {
+      const res = (await invoke("srun_logout", {
+        options: toLoginOptions(),
+      })) as {
         error: string;
         error_msg?: string;
       };
@@ -207,7 +225,7 @@ export default function App() {
       const res = (await invoke("srun_login", {
         username,
         password,
-        baseUrl: readBaseUrl(),
+        options: toLoginOptions(),
       })) as LoginResult;
       if (res.error === "ok") {
         const ip = res.client_ip || res.online_ip || "";
@@ -243,7 +261,7 @@ export default function App() {
           title="设置"
           aria-label="设置"
         >
-          ⚙
+          <IconGear size={20} />
         </button>
         <button
           type="button"
@@ -253,7 +271,7 @@ export default function App() {
           title="刷新状态"
           aria-label="刷新状态"
         >
-          ⟳
+          <IconRefresh size={20} />
         </button>
       </div>
       {toasts.length > 0 && (
@@ -267,7 +285,7 @@ export default function App() {
                 onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
                 aria-label="关闭通知"
               >
-                ✕
+                <IconClose size={12} />
               </button>
               <span className="toast__progress" aria-hidden />
             </div>

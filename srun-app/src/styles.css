@@ -14,8 +14,22 @@
   --danger: #dc2626;
 }
 
+/* 强制深色（data-theme="dark"） */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #101418;
+  --text: #e5e7eb;
+  --text-1: #e5e7eb;
+  --text-2: #9ca3af;
+  --muted: #9ca3af;
+  --card: #1a1f26;
+  --border: #2a313a;
+}
+
+/* 跟随系统：仅在未强制浅色时应用深色 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #101418;
     --text: #e5e7eb;
     --text-1: #e5e7eb;

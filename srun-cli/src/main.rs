@@ -5,9 +5,8 @@
 
 use clap::Parser;
 use srun_core::config::{BASE_URL, DEFAULT_RETRY, DEFAULT_WAIT};
-use srun_core::http::SrunHttp;
 use srun_core::logger::{print_log, Level};
-use srun_core::login::{build_login_request, login};
+use srun_core::login::{build_login_request, login_ex, SrunLoginOptions};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -79,15 +78,17 @@ async fn run_dry_run(args: &Args) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// 普通登录模式：构造 HTTP 客户端 → 重试循环 → 倒计时
+/// 普通登录模式：构造网关参数 → 重试循环 → 倒计时
 async fn run_login(args: &Args) -> anyhow::Result<()> {
-    let base_url = args.base_url.as_deref().unwrap_or(BASE_URL);
-    let http = SrunHttp::with_base_url(base_url)
-        .map_err(|e| anyhow::anyhow!("HTTP 客户端构造失败: {e}"))?;
+    let base_url = args.base_url.as_deref().unwrap_or(BASE_URL).to_string();
+    let options = SrunLoginOptions {
+        base_url,
+        ..SrunLoginOptions::defaults()
+    };
 
     for attempt in 1..=args.retry {
         print_log("正在登录校园网...", "", Level::Info, false);
-        match login(&http, &args.username, &args.password).await {
+        match login_ex(&args.username, &args.password, &options).await {
             Ok(res) => {
                 let error = res.get("error").and_then(|v| v.as_str()).unwrap_or("");
                 let client_ip = res.get("client_ip").and_then(|v| v.as_str()).unwrap_or("");

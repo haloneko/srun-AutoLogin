@@ -2,8 +2,10 @@
 //!
 //! 复用 `srun-core` 完成登录流程，通过 Tauri command 暴露给 React 前端。
 
+use serde::Deserialize;
 use serde_json::Value;
 use srun_core::http::SrunHttp;
+use srun_core::login::SrunLoginOptions;
 use srun_core::status::OnlineStatus;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -83,45 +85,73 @@ fn autostart_set(app: AppHandle, enable: bool) -> Result<(), String> {
     }
 }
 
-/// 用前端传入的认证服务器地址构造客户端；缺省（未传或为空）时回退到默认网关。
-fn make_http(base_url: Option<String>) -> Result<SrunHttp, String> {
-    match base_url {
-        Some(u) if !u.trim().is_empty() => SrunHttp::with_base_url(u.trim()),
-        _ => SrunHttp::new(),
-    }
-    .map_err(|e| e.to_string())
+/// 网关兼容参数：与前端 `toLoginOptions()` 字段一一对应，三个 command 统一消费。
+///
+/// 全部字段可缺省，空白值在核心层 [`SrunLoginOptions::normalize`] 中回退默认配置。
+/// 后续新增设置项只需改这里与核心 options，command 签名保持稳定。
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GatewayOptions {
+    base_url: Option<String>,
+    ac_id: Option<String>,
+    enc_ver: Option<String>,
+    base64_alpha: Option<String>,
+    user_agent: Option<String>,
 }
 
-/// 登录 command：前端 `invoke("srun_login", { username, password, baseUrl })` 调用。
+impl GatewayOptions {
+    /// Option 转 String，空白字段回退默认值（供登录 / 状态 / 注销共用）
+    fn to_srun_options(&self) -> SrunLoginOptions {
+        let mut opts = SrunLoginOptions {
+            base_url: self.base_url.clone().unwrap_or_default(),
+            ac_id: self.ac_id.clone().unwrap_or_default(),
+            enc_ver: self.enc_ver.clone().unwrap_or_default(),
+            base64_alpha: self.base64_alpha.clone().unwrap_or_default(),
+            user_agent: self.user_agent.clone().unwrap_or_default(),
+        };
+        opts.normalize();
+        opts
+    }
+}
+
+/// 登录 command：前端 `invoke("srun_login", { username, password, options })` 调用。
 ///
 /// 返回 srun_portal 的解析结果（`error` / `client_ip` / `online_ip` / `suc_msg` / `error_msg`），
 /// 流程异常时以字符串错误返回（`error != "ok"` 属于业务失败，走 Ok 分支）。
 #[tauri::command]
-async fn srun_login(username: String, password: String, base_url: Option<String>) -> Result<Value, String> {
-    let http = make_http(base_url)?;
-    srun_core::login::login(&http, &username, &password)
+async fn srun_login(
+    username: String,
+    password: String,
+    options: GatewayOptions,
+) -> Result<Value, String> {
+    let opts = options.to_srun_options();
+    srun_core::login::login_ex(&username, &password, &opts)
         .await
         .map_err(|e| e.to_string())
 }
 
-/// 在线状态 command：前端 `invoke("srun_status", { baseUrl })` 调用。
+/// 在线状态 command：前端 `invoke("srun_status", { options })` 调用。
 ///
 /// 查询 `/cgi-bin/rad_user_info`，返回在线与否、账号、IP、上线时长、已用流量。
 #[tauri::command]
-async fn srun_status(base_url: Option<String>) -> Result<OnlineStatus, String> {
-    let http = make_http(base_url)?;
+async fn srun_status(options: GatewayOptions) -> Result<OnlineStatus, String> {
+    let opts = options.to_srun_options();
+    let http = SrunHttp::with_base_url_and_ua(&opts.base_url, &opts.user_agent)
+        .map_err(|e| e.to_string())?;
     srun_core::status::get_online_status(&http)
         .await
         .map_err(|e| e.to_string())
 }
 
-/// 注销 command：前端 `invoke("srun_logout", { baseUrl })` 调用。
+/// 注销 command：前端 `invoke("srun_logout", { options })` 调用。
 ///
 /// 通过 `/cgi-bin/srun_portal`（action=logout）断开当前连接，
 /// 返回网关原始解析结果（`error` / `error_msg` 等）。
 #[tauri::command]
-async fn srun_logout(base_url: Option<String>) -> Result<Value, String> {
-    let http = make_http(base_url)?;
+async fn srun_logout(options: GatewayOptions) -> Result<Value, String> {
+    let opts = options.to_srun_options();
+    let http = SrunHttp::with_base_url_and_ua(&opts.base_url, &opts.user_agent)
+        .map_err(|e| e.to_string())?;
     srun_core::logout::logout(&http)
         .await
         .map_err(|e| e.to_string())
