@@ -3,7 +3,8 @@
 //! 对应 Python `srun/encrypt.py::encrypt_info(info, token)`：
 //! LoginInfo 序列化为紧凑 JSON → UTF-8 → x_encode → base64_encode。
 
-use crate::encrypt::srun_lib::{base64_encode, x_encode};
+use crate::config::SRUN_BASE64_ALPHA;
+use crate::encrypt::srun_lib::{base64_encode_with_alpha, x_encode};
 use crate::error::Result;
 use serde::Serialize;
 
@@ -23,12 +24,18 @@ pub struct LoginInfo<'a> {
 }
 
 /// 对应 Python `encrypt_info(info, token)`：序列化为 JSON → UTF-8 → x_encode → base64_encode
+/// 使用默认加密字母表 [`SRUN_BASE64_ALPHA`]。
 pub fn encrypt_info(info: &LoginInfo, token: &str) -> Result<String> {
+    encrypt_info_with_alpha(info, token, SRUN_BASE64_ALPHA)
+}
+
+/// 带自定义加密字母表版本的 `encrypt_info`（高级设置：适配其他学校的深澜网关）。
+pub fn encrypt_info_with_alpha(info: &LoginInfo, token: &str, alpha: &str) -> Result<String> {
     let json = serde_json::to_string(info)?;
     let data = json.as_bytes();
     let key = token.as_bytes();
     let x_encoded = x_encode(data, key);
-    Ok(base64_encode(&x_encoded))
+    base64_encode_with_alpha(&x_encoded, alpha)
 }
 
 #[cfg(test)]

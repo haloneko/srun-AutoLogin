@@ -92,11 +92,11 @@ fn make_http(base_url: Option<String>) -> Result<SrunHttp, String> {
     .map_err(|e| e.to_string())
 }
 
-/// 登录 command：前端 `invoke("srun_login", { username, password, baseUrl, acId, encVer })` 调用。
+/// 登录 command：前端 `invoke("srun_login", { username, password, baseUrl, acId, encVer, base64Alpha })` 调用。
 ///
 /// 返回 srun_portal 的解析结果（`error` / `client_ip` / `online_ip` / `suc_msg` / `error_msg`），
 /// 流程异常时以字符串错误返回（`error != "ok"` 属于业务失败，走 Ok 分支）。
-/// `ac_id` / `enc_ver` 为高级设置项，未传或为空时使用默认值（适配其他学校的深澜网关）。
+/// `ac_id` / `enc_ver` / `base64_alpha` 为高级设置项，未传或为空时使用默认值（适配其他学校的深澜网关）。
 #[tauri::command]
 async fn srun_login(
     username: String,
@@ -104,6 +104,7 @@ async fn srun_login(
     base_url: Option<String>,
     ac_id: Option<String>,
     enc_ver: Option<String>,
+    base64_alpha: Option<String>,
 ) -> Result<Value, String> {
     let http = make_http(base_url)?;
     let ac_id = ac_id
@@ -112,7 +113,10 @@ async fn srun_login(
     let enc_ver = enc_ver
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| srun_core::config::ENC_VER.to_string());
-    srun_core::login::login_ex(&http, &username, &password, &ac_id, &enc_ver)
+    let base64_alpha = base64_alpha
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| srun_core::config::SRUN_BASE64_ALPHA.to_string());
+    srun_core::login::login_ex(&http, &username, &password, &ac_id, &enc_ver, &base64_alpha)
         .await
         .map_err(|e| e.to_string())
 }

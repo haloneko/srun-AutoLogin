@@ -3,17 +3,22 @@
 //! 对应 Python `srun/srun_lib.py`，匹配 Portal.js 的 `s()` / `l()` / `encode()`。
 
 use crate::config::SRUN_BASE64_ALPHA;
+use crate::error::{Result, SrunError};
 use base64::alphabet::Alphabet;
 use base64::engine::general_purpose::GeneralPurposeConfig;
 use base64::engine::GeneralPurpose;
 use base64::Engine;
-use std::sync::OnceLock;
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 
 /// XXTEA 算法的 delta 常数（对应 Python `XXTEA_DELTA`）
 const DELTA: u32 = 0x9E3779B9;
 
-/// 缓存自定义字母表，避免每次 `base64_encode` 都重新解析
-static ALPHABET: OnceLock<Alphabet> = OnceLock::new();
+/// 缓存已解析的自定义字母表。
+///
+/// `GeneralPurpose::new` 需要 `&'static Alphabet`，因此把解析结果 `Box::leak`
+/// 到进程生命周期；每种字母表只 leak 一次（数量极少，可接受）。
+static ALPHABET_CACHE: OnceLock<Mutex<HashMap<String, &'static Alphabet>>> = OnceLock::new();
 
 /// 对应 Python `_xxtea_str_to_words`：把字节切片按 4 字节小端打包成 u32 数组。
 ///
@@ -92,14 +97,31 @@ pub fn x_encode(data: &[u8], key: &[u8]) -> Vec<u8> {
 
 /// 自定义字母表 Base64 编码，对应 Python `base64_encode`。
 ///
-/// 使用 [`SRUN_BASE64_ALPHA`] 作为 64 字符字母表，输出含 `=` 填充
+/// 使用默认 [`SRUN_BASE64_ALPHA`] 作为 64 字符字母表，输出含 `=` 填充
 /// （与标准 Base64 填充规则一致：1 字节输入补 2 个 `=`，2 字节补 1 个 `=`）。
 pub fn base64_encode(data: &[u8]) -> String {
-    let alpha = ALPHABET.get_or_init(|| {
-        Alphabet::new(SRUN_BASE64_ALPHA).expect("SRUN_BASE64_ALPHA 必须是合法 64 字符字母表")
-    });
-    let engine = GeneralPurpose::new(alpha, GeneralPurposeConfig::new().with_encode_padding(true));
-    engine.encode(data)
+    base64_encode_with_alpha(data, SRUN_BASE64_ALPHA)
+        .expect("SRUN_BASE64_ALPHA 必须是合法 64 字符字母表")
+}
+
+/// 带自定义字母表的 Base64 编码（高级设置：适配不同学校的深澜加密字母表）。
+///
+/// `alpha` 必须是 64 个互不相同的 ASCII 字符，否则返回错误。
+/// 输出规则与标准 Base64 一致（含 `=` 填充）。
+pub fn base64_encode_with_alpha(data: &[u8], alpha: &str) -> Result<String> {
+    let cache = ALPHABET_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut guard = cache.lock().unwrap();
+    let alphabet = match guard.get(alpha) {
+        Some(a) => *a,
+        None => {
+            let parsed = Alphabet::new(alpha).map_err(|e| SrunError::Other(Box::new(e)))?;
+            let leaked: &'static Alphabet = Box::leak(Box::new(parsed));
+            guard.insert(alpha.to_string(), leaked);
+            leaked
+        }
+    };
+    let engine = GeneralPurpose::new(alphabet, GeneralPurposeConfig::new().with_encode_padding(true));
+    Ok(engine.encode(data))
 }
 
 #[cfg(test)]

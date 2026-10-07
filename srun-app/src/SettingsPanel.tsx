@@ -7,6 +7,7 @@ const CRED_PASSWORD_KEY = "srun.password";
 const BASE_URL_KEY = "srun.baseUrl";
 const AC_ID_KEY = "srun.acId";
 const ENC_VER_KEY = "srun.encVer";
+const BASE64_ALPHA_KEY = "srun.base64Alpha";
 const THEME_KEY = "srun.theme";
 const STARTUP_MODE_KEY = "srun.startupMode";
 const LAST_ONLINE_KEY = "srun.lastOnline";
@@ -14,6 +15,7 @@ const LAST_ONLINE_KEY = "srun.lastOnline";
 export const DEFAULT_BASE_URL = "https://wlrz.sdmu.edu.cn/";
 export const DEFAULT_AC_ID = "1";
 export const DEFAULT_ENC_VER = "srun_bx1";
+export const DEFAULT_BASE64_ALPHA = "LVoJPiCN2R8G90yg+hmFHuacZ1OWMnrsSTXkYpUq/3dlbfKwv6xztjI7DeBE45QA";
 
 export type StartupMode = "auto" | "manual" | "remember";
 
@@ -49,6 +51,10 @@ export function readAcId(): string {
 
 export function readEncVer(): string {
   return read(ENC_VER_KEY) || DEFAULT_ENC_VER;
+}
+
+export function readBase64Alpha(): string {
+  return read(BASE64_ALPHA_KEY) || DEFAULT_BASE64_ALPHA;
 }
 
 export function readTheme(): ThemeMode {
@@ -92,6 +98,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
   const [baseUrl, setBaseUrl] = useState("");
   const [acId, setAcId] = useState("");
   const [encVer, setEncVer] = useState("");
+  const [base64Alpha, setBase64Alpha] = useState("");
   const [theme, setTheme] = useState<ThemeMode>("system");
   const [startupMode, setStartupMode] = useState<StartupMode>("manual");
   const [autostart, setAutostart] = useState(false);
@@ -103,6 +110,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
   const [savedBaseUrl, setSavedBaseUrl] = useState(DEFAULT_BASE_URL);
   const [savedAcId, setSavedAcId] = useState(DEFAULT_AC_ID);
   const [savedEncVer, setSavedEncVer] = useState(DEFAULT_ENC_VER);
+  const [savedBase64Alpha, setSavedBase64Alpha] = useState(DEFAULT_BASE64_ALPHA);
 
   // 打开抽屉时载入已保存的值，并查询开机自启动状态
   useEffect(() => {
@@ -112,16 +120,19 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
     const b = read(BASE_URL_KEY) || DEFAULT_BASE_URL;
     const a = readAcId();
     const e = readEncVer();
+    const al = readBase64Alpha();
     setUsername(u);
     setPassword(p);
     setBaseUrl(b);
     setAcId(a);
     setEncVer(e);
+    setBase64Alpha(al);
     setSavedUsername(u);
     setSavedPassword(p);
     setSavedBaseUrl(b);
     setSavedAcId(a);
     setSavedEncVer(e);
+    setSavedBase64Alpha(al);
     setTheme(readTheme());
     setStartupMode(readStartupMode());
     setShowPwd(false);
@@ -220,6 +231,19 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
     setSavedEncVer(e);
   }
 
+  function confirmBase64Alpha() {
+    const a = base64Alpha.trim();
+    // 深澜字母表：恰好 64 个互不相同的 ASCII 字符
+    const chars = new Set(a);
+    if (a.length !== 64 || chars.size !== 64 || /[^\x21-\x7e]/.test(a)) {
+      onToast("字母表需为 64 个互不相同的 ASCII 字符");
+      return;
+    }
+    if (!writeValue(BASE64_ALPHA_KEY, a, "加密字母表已保存")) return;
+    setBase64Alpha(a);
+    setSavedBase64Alpha(a);
+  }
+
   if (!open) return null;
 
   const usernameDirty = username !== savedUsername;
@@ -227,6 +251,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
   const baseUrlDirty = baseUrl.trim() !== savedBaseUrl;
   const acIdDirty = acId.trim() !== savedAcId;
   const encVerDirty = encVer.trim() !== savedEncVer;
+  const base64AlphaDirty = base64Alpha.trim() !== savedBase64Alpha;
 
   return (
     <div className="settings-overlay" onClick={onClose}>
@@ -438,6 +463,42 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
                       className="settings-field__cancel"
                       onClick={() => setEncVer(savedEncVer)}
                       aria-label="撤销加密版本修改"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )}
+              </span>
+            </label>
+            <label className="settings-field">
+              <span className="settings-field__label">
+                加密字母表 (base64)
+                <span className="settings-field__hint">64 个字符，默认深澜标准</span>
+              </span>
+              <span className="settings-field__row">
+                <input
+                  className="settings-field__input"
+                  type="text"
+                  value={base64Alpha}
+                  onChange={(e) => setBase64Alpha(e.target.value)}
+                  placeholder={DEFAULT_BASE64_ALPHA}
+                  spellCheck={false}
+                />
+                {base64AlphaDirty && (
+                  <span className="settings-field__actions">
+                    <button
+                      type="button"
+                      className="settings-field__confirm"
+                      onClick={confirmBase64Alpha}
+                      aria-label="确认保存加密字母表"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-field__cancel"
+                      onClick={() => setBase64Alpha(savedBase64Alpha)}
+                      aria-label="撤销加密字母表修改"
                     >
                       ✕
                     </button>

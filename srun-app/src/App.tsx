@@ -4,6 +4,7 @@ import HeroButton from "./HeroButton";
 import SettingsPanel, {
   applyTheme,
   readAcId,
+  readBase64Alpha,
   readBaseUrl,
   readEncVer,
   readStartupMode,
@@ -219,6 +220,7 @@ export default function App() {
         baseUrl: readBaseUrl(),
         acId: readAcId(),
         encVer: readEncVer(),
+        base64Alpha: readBase64Alpha(),
       })) as LoginResult;
       if (res.error === "ok") {
         const ip = res.client_ip || res.online_ip || "";

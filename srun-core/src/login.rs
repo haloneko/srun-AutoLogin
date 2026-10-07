@@ -5,9 +5,9 @@
 
 use crate::api::now_millis;
 use crate::api::{challenge, user};
-use crate::config::{AC_ID, DOUBLE_STACK, ENC_VER, NAME, N, OS, TYPE};
+use crate::config::{AC_ID, DOUBLE_STACK, ENC_VER, NAME, N, OS, SRUN_BASE64_ALPHA, TYPE};
 use crate::encrypt::chkstr::{get_chkstr, ChkstrData};
-use crate::encrypt::info::{encrypt_info, LoginInfo};
+use crate::encrypt::info::{encrypt_info_with_alpha, LoginInfo};
 use crate::encrypt::password::encrypt_password;
 use crate::error::{Result, SrunError};
 use crate::http::SrunHttp;
@@ -43,10 +43,11 @@ pub fn build_login_request(
     ip: &str,
     challenge: &str,
 ) -> Result<Vec<(String, String)>> {
-    build_login_request_ex(username, password, ip, challenge, AC_ID, ENC_VER)
+    build_login_request_ex(username, password, ip, challenge, AC_ID, ENC_VER, SRUN_BASE64_ALPHA)
 }
 
-/// 带自定义 `ac_id` / `enc_ver` 的请求构造版本（高级设置：适配其他学校的深澜网关）。
+/// 带自定义 `ac_id` / `enc_ver` / `base64_alpha` 的请求构造版本
+/// （高级设置：适配其他学校的深澜网关）。
 pub fn build_login_request_ex(
     username: &str,
     password: &str,
@@ -54,6 +55,7 @@ pub fn build_login_request_ex(
     challenge: &str,
     ac_id: &str,
     enc_ver: &str,
+    base64_alpha: &str,
 ) -> Result<Vec<(String, String)>> {
     let info = LoginInfo {
         username,
@@ -62,7 +64,7 @@ pub fn build_login_request_ex(
         acid: ac_id,
         enc_ver,
     };
-    let encrypted_info_inner = encrypt_info(&info, challenge)?;
+    let encrypted_info_inner = encrypt_info_with_alpha(&info, challenge, base64_alpha)?;
     // info 字段值含前缀（默认 {SRBX1}），前缀由加密版本派生
     let encrypted_info = format!("{}{}", info_prefix(enc_ver), encrypted_info_inner);
     let encrypted_password = encrypt_password(password, challenge);
@@ -107,16 +109,18 @@ pub fn build_login_request_ex(
 /// 3. [`build_login_request`] 构造加密参数
 /// 4. `portal` 发起登录请求
 pub async fn login(http: &SrunHttp, username: &str, password: &str) -> Result<Value> {
-    login_ex(http, username, password, AC_ID, ENC_VER).await
+    login_ex(http, username, password, AC_ID, ENC_VER, SRUN_BASE64_ALPHA).await
 }
 
-/// 带自定义 `ac_id` / `enc_ver` 的完整登录流程（高级设置：适配其他学校的深澜网关）。
+/// 带自定义 `ac_id` / `enc_ver` / `base64_alpha` 的完整登录流程
+/// （高级设置：适配其他学校的深澜网关）。
 pub async fn login_ex(
     http: &SrunHttp,
     username: &str,
     password: &str,
     ac_id: &str,
     enc_ver: &str,
+    base64_alpha: &str,
 ) -> Result<Value> {
     let user_info = user::get_user_info(http).await?;
     let ip = extract_ip(&user_info);
@@ -128,7 +132,7 @@ pub async fn login_ex(
         .get("challenge")
         .and_then(|v| v.as_str())
         .ok_or(SrunError::MissingField("challenge"))?;
-    let params = build_login_request_ex(username, password, &ip, challenge, ac_id, enc_ver)?;
+    let params = build_login_request_ex(username, password, &ip, challenge, ac_id, enc_ver, base64_alpha)?;
     let owned: Vec<(&str, String)> = params
         .iter()
         .map(|(k, v)| (k.as_str(), v.clone()))
