@@ -8,6 +8,7 @@ const BASE_URL_KEY = "srun.baseUrl";
 const AC_ID_KEY = "srun.acId";
 const ENC_VER_KEY = "srun.encVer";
 const BASE64_ALPHA_KEY = "srun.base64Alpha";
+const USER_AGENT_KEY = "srun.userAgent";
 const THEME_KEY = "srun.theme";
 const STARTUP_MODE_KEY = "srun.startupMode";
 const LAST_ONLINE_KEY = "srun.lastOnline";
@@ -16,6 +17,9 @@ export const DEFAULT_BASE_URL = "https://wlrz.sdmu.edu.cn/";
 export const DEFAULT_AC_ID = "1";
 export const DEFAULT_ENC_VER = "srun_bx1";
 export const DEFAULT_BASE64_ALPHA = "LVoJPiCN2R8G90yg+hmFHuacZ1OWMnrsSTXkYpUq/3dlbfKwv6xztjI7DeBE45QA";
+/// 与 srun-core `config::USER_AGENT` 保持一致；留空时后端使用该默认值
+export const DEFAULT_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 export type StartupMode = "auto" | "manual" | "remember";
 
@@ -55,6 +59,11 @@ export function readEncVer(): string {
 
 export function readBase64Alpha(): string {
   return read(BASE64_ALPHA_KEY) || DEFAULT_BASE64_ALPHA;
+}
+
+/// 自定义 UA；返回存储的原始值（空字符串表示使用默认 UA）
+export function readUserAgent(): string {
+  return read(USER_AGENT_KEY);
 }
 
 export function readTheme(): ThemeMode {
@@ -99,6 +108,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
   const [acId, setAcId] = useState("");
   const [encVer, setEncVer] = useState("");
   const [base64Alpha, setBase64Alpha] = useState("");
+  const [userAgent, setUserAgent] = useState("");
   const [theme, setTheme] = useState<ThemeMode>("system");
   const [startupMode, setStartupMode] = useState<StartupMode>("manual");
   const [autostart, setAutostart] = useState(false);
@@ -111,6 +121,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
   const [savedAcId, setSavedAcId] = useState(DEFAULT_AC_ID);
   const [savedEncVer, setSavedEncVer] = useState(DEFAULT_ENC_VER);
   const [savedBase64Alpha, setSavedBase64Alpha] = useState(DEFAULT_BASE64_ALPHA);
+  const [savedUserAgent, setSavedUserAgent] = useState("");
 
   // 打开抽屉时载入已保存的值，并查询开机自启动状态
   useEffect(() => {
@@ -121,18 +132,21 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
     const a = readAcId();
     const e = readEncVer();
     const al = readBase64Alpha();
+    const ua = readUserAgent();
     setUsername(u);
     setPassword(p);
     setBaseUrl(b);
     setAcId(a);
     setEncVer(e);
     setBase64Alpha(al);
+    setUserAgent(ua);
     setSavedUsername(u);
     setSavedPassword(p);
     setSavedBaseUrl(b);
     setSavedAcId(a);
     setSavedEncVer(e);
     setSavedBase64Alpha(al);
+    setSavedUserAgent(ua);
     setTheme(readTheme());
     setStartupMode(readStartupMode());
     setShowPwd(false);
@@ -244,6 +258,18 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
     setSavedBase64Alpha(a);
   }
 
+  function confirmUserAgent() {
+    const ua = userAgent.trim();
+    // 留空 = 使用默认 UA；非空时不能包含换行等控制字符
+    if (ua && /[\x00-\x1f\x7f]/.test(ua)) {
+      onToast("UA 不能包含换行或控制字符");
+      return;
+    }
+    if (!writeValue(USER_AGENT_KEY, ua, ua ? "User-Agent 已保存" : "已恢复默认 User-Agent")) return;
+    setUserAgent(ua);
+    setSavedUserAgent(ua);
+  }
+
   if (!open) return null;
 
   const usernameDirty = username !== savedUsername;
@@ -252,6 +278,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
   const acIdDirty = acId.trim() !== savedAcId;
   const encVerDirty = encVer.trim() !== savedEncVer;
   const base64AlphaDirty = base64Alpha.trim() !== savedBase64Alpha;
+  const userAgentDirty = userAgent.trim() !== savedUserAgent;
 
   return (
     <div className="settings-overlay" onClick={onClose}>
@@ -384,6 +411,42 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
                       className="settings-field__cancel"
                       onClick={() => setBaseUrl(savedBaseUrl)}
                       aria-label="撤销服务器地址修改"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )}
+              </span>
+            </label>
+            <label className="settings-field">
+              <span className="settings-field__label">
+                User-Agent
+                <span className="settings-field__hint">留空使用默认；可模拟特定浏览器</span>
+              </span>
+              <span className="settings-field__row">
+                <input
+                  className="settings-field__input"
+                  type="text"
+                  value={userAgent}
+                  onChange={(e) => setUserAgent(e.target.value)}
+                  placeholder={DEFAULT_USER_AGENT}
+                  spellCheck={false}
+                />
+                {userAgentDirty && (
+                  <span className="settings-field__actions">
+                    <button
+                      type="button"
+                      className="settings-field__confirm"
+                      onClick={confirmUserAgent}
+                      aria-label="确认保存 User-Agent"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      type="button"
+                      className="settings-field__cancel"
+                      onClick={() => setUserAgent(savedUserAgent)}
+                      aria-label="撤销 User-Agent 修改"
                     >
                       ✕
                     </button>

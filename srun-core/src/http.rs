@@ -23,13 +23,25 @@ impl SrunHttp {
 
     /// 指定 base_url 构造客户端（测试用注入 wiremock URL）。
     ///
-    /// 启用 cookie 存储与统一 User-Agent。
+    /// 启用 cookie 存储与统一 User-Agent（默认 [`USER_AGENT`]）。
     pub fn with_base_url(base_url: &str) -> Result<Self> {
+        Self::with_base_url_and_ua(base_url, USER_AGENT)
+    }
+
+    /// 指定 base_url 与 User-Agent 构造客户端（自定义 UA：适配网关反爬 / 模拟特定浏览器）。
+    ///
+    /// `user_agent` 为空或全空白时回退到默认 [`USER_AGENT`]；启用 cookie 存储。
+    pub fn with_base_url_and_ua(base_url: &str, user_agent: &str) -> Result<Self> {
         let base_url =
             Url::parse(base_url).map_err(|e| SrunError::Http(format!("URL 解析失败: {e}")))?;
+        let ua = if user_agent.trim().is_empty() {
+            USER_AGENT
+        } else {
+            user_agent
+        };
         let client = reqwest::Client::builder()
             .cookie_store(true)
-            .user_agent(USER_AGENT)
+            .user_agent(ua)
             .build()
             .map_err(|e| SrunError::Http(e.to_string()))?;
         Ok(Self { client, base_url })
@@ -114,6 +126,34 @@ mod tests {
             .mount(&server)
             .await;
         let http = make_http(&server.uri());
+        let _ = http.get_jsonp("/cgi-bin/test", &[]).await.unwrap();
+    }
+
+    /// 自定义 UA 构造的客户端应发送用户指定的值
+    #[tokio::test]
+    async fn with_base_url_and_ua_sends_custom_user_agent() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/cgi-bin/test"))
+            .and(header("user-agent", "MyCustomAgent/1.0"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
+            .mount(&server)
+            .await;
+        let http = SrunHttp::with_base_url_and_ua(&server.uri(), "MyCustomAgent/1.0").unwrap();
+        let _ = http.get_jsonp("/cgi-bin/test", &[]).await.unwrap();
+    }
+
+    /// 自定义 UA 为空或全空白时应回退到默认 [`USER_AGENT`]
+    #[tokio::test]
+    async fn with_base_url_and_ua_blank_falls_back_to_default() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/cgi-bin/test"))
+            .and(header("user-agent", USER_AGENT))
+            .respond_with(ResponseTemplate::new(200).set_body_string("ok"))
+            .mount(&server)
+            .await;
+        let http = SrunHttp::with_base_url_and_ua(&server.uri(), "  ").unwrap();
         let _ = http.get_jsonp("/cgi-bin/test", &[]).await.unwrap();
     }
 

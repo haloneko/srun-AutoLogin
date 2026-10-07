@@ -9,6 +9,7 @@ import SettingsPanel, {
   readEncVer,
   readStartupMode,
   readTheme,
+  readUserAgent,
   writeLastOnline,
 } from "./SettingsPanel";
 
@@ -125,6 +126,7 @@ export default function App() {
     try {
       const s = await invoke<OnlineStatus>("srun_status", {
         baseUrl: readBaseUrl(),
+        userAgent: readUserAgent(),
       });
       setInfo(s);
       setInfoError("");
@@ -179,7 +181,10 @@ export default function App() {
     }
     setStatus({ kind: "loggingOut" });
     try {
-      const res = (await invoke("srun_logout", { baseUrl: readBaseUrl() })) as {
+      const res = (await invoke("srun_logout", {
+        baseUrl: readBaseUrl(),
+        userAgent: readUserAgent(),
+      })) as {
         error: string;
         error_msg?: string;
       };
@@ -221,6 +226,7 @@ export default function App() {
         acId: readAcId(),
         encVer: readEncVer(),
         base64Alpha: readBase64Alpha(),
+        userAgent: readUserAgent(),
       })) as LoginResult;
       if (res.error === "ok") {
         const ip = res.client_ip || res.online_ip || "";

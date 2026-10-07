@@ -83,20 +83,30 @@ fn autostart_set(app: AppHandle, enable: bool) -> Result<(), String> {
     }
 }
 
-/// 用前端传入的认证服务器地址构造客户端；缺省（未传或为空）时回退到默认网关。
-fn make_http(base_url: Option<String>) -> Result<SrunHttp, String> {
+/// 用前端传入的认证服务器地址与 User-Agent 构造客户端；
+/// 缺省（未传或为空）时回退到默认网关 / 默认 UA。
+fn make_http(
+    base_url: Option<String>,
+    user_agent: Option<String>,
+) -> Result<SrunHttp, String> {
+    let ua = user_agent
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| srun_core::config::USER_AGENT.to_string());
     match base_url {
-        Some(u) if !u.trim().is_empty() => SrunHttp::with_base_url(u.trim()),
-        _ => SrunHttp::new(),
+        Some(u) if !u.trim().is_empty() => {
+            SrunHttp::with_base_url_and_ua(u.trim(), &ua)
+        }
+        _ => SrunHttp::with_base_url_and_ua(srun_core::config::BASE_URL, &ua),
     }
     .map_err(|e| e.to_string())
 }
 
-/// 登录 command：前端 `invoke("srun_login", { username, password, baseUrl, acId, encVer, base64Alpha })` 调用。
+/// 登录 command：前端 `invoke("srun_login", { username, password, baseUrl, acId, encVer, base64Alpha, userAgent })` 调用。
 ///
 /// 返回 srun_portal 的解析结果（`error` / `client_ip` / `online_ip` / `suc_msg` / `error_msg`），
 /// 流程异常时以字符串错误返回（`error != "ok"` 属于业务失败，走 Ok 分支）。
-/// `ac_id` / `enc_ver` / `base64_alpha` 为高级设置项，未传或为空时使用默认值（适配其他学校的深澜网关）。
+/// `ac_id` / `enc_ver` / `base64_alpha` / `user_agent` 为高级设置项，未传或为空时使用默认值
+/// （适配其他学校的深澜网关）。
 #[tauri::command]
 async fn srun_login(
     username: String,
@@ -105,8 +115,9 @@ async fn srun_login(
     ac_id: Option<String>,
     enc_ver: Option<String>,
     base64_alpha: Option<String>,
+    user_agent: Option<String>,
 ) -> Result<Value, String> {
-    let http = make_http(base_url)?;
+    let http = make_http(base_url, user_agent)?;
     let ac_id = ac_id
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| srun_core::config::AC_ID.to_string());
@@ -125,20 +136,26 @@ async fn srun_login(
 ///
 /// 查询 `/cgi-bin/rad_user_info`，返回在线与否、账号、IP、上线时长、已用流量。
 #[tauri::command]
-async fn srun_status(base_url: Option<String>) -> Result<OnlineStatus, String> {
-    let http = make_http(base_url)?;
+async fn srun_status(
+    base_url: Option<String>,
+    user_agent: Option<String>,
+) -> Result<OnlineStatus, String> {
+    let http = make_http(base_url, user_agent)?;
     srun_core::status::get_online_status(&http)
         .await
         .map_err(|e| e.to_string())
 }
 
-/// 注销 command：前端 `invoke("srun_logout", { baseUrl })` 调用。
+/// 注销 command：前端 `invoke("srun_logout", { baseUrl, userAgent })` 调用。
 ///
 /// 通过 `/cgi-bin/srun_portal`（action=logout）断开当前连接，
 /// 返回网关原始解析结果（`error` / `error_msg` 等）。
 #[tauri::command]
-async fn srun_logout(base_url: Option<String>) -> Result<Value, String> {
-    let http = make_http(base_url)?;
+async fn srun_logout(
+    base_url: Option<String>,
+    user_agent: Option<String>,
+) -> Result<Value, String> {
+    let http = make_http(base_url, user_agent)?;
     srun_core::logout::logout(&http)
         .await
         .map_err(|e| e.to_string())
