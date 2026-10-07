@@ -78,11 +78,14 @@ const TEXT_FIELDS: TextFieldDef[] = [
   {
     key: BASE_URL_KEY,
     label: "服务器地址",
+    hint: "留空使用默认网关",
     placeholder: DEFAULT_BASE_URL,
-    defaultValue: DEFAULT_BASE_URL,
-    validate: (v) =>
-      /^https?:\/\/.+/i.test(v.trim()) ? null : "服务器地址需以 http(s):// 开头",
-    saveMsg: () => "服务器地址已保存",
+    defaultValue: "",
+    validate: (v) => {
+      const t = v.trim();
+      return !t || /^https?:\/\/.+/i.test(t) ? null : "服务器地址需以 http(s):// 开头";
+    },
+    saveMsg: (v) => (v.trim() ? "服务器地址已保存" : "已恢复默认服务器地址"),
   },
   {
     key: USER_AGENT_KEY,
@@ -97,35 +100,42 @@ const TEXT_FIELDS: TextFieldDef[] = [
   {
     key: AC_ID_KEY,
     label: "认证组 ID (ac_id)",
-    hint: "多数学校为 1",
+    hint: "留空使用默认；多数学校为 1",
     placeholder: DEFAULT_AC_ID,
-    defaultValue: DEFAULT_AC_ID,
-    validate: (v) => (/^\d+$/.test(v.trim()) ? null : "认证组 ID 需为数字"),
-    saveMsg: () => "认证组 ID 已保存",
+    defaultValue: "",
+    validate: (v) => {
+      const t = v.trim();
+      return !t || /^\d+$/.test(t) ? null : "认证组 ID 需为数字";
+    },
+    saveMsg: (v) => (v.trim() ? "认证组 ID 已保存" : "已恢复默认认证组 ID"),
   },
   {
     key: ENC_VER_KEY,
     label: "加密版本 (enc_ver)",
-    hint: "深澜标准为 srun_bx1",
+    hint: "留空使用默认；深澜标准为 srun_bx1",
     placeholder: DEFAULT_ENC_VER,
-    defaultValue: DEFAULT_ENC_VER,
-    validate: (v) => (/^[A-Za-z0-9_]+$/.test(v.trim()) ? null : "加密版本格式不正确"),
-    saveMsg: () => "加密版本已保存",
+    defaultValue: "",
+    validate: (v) => {
+      const t = v.trim();
+      return !t || /^[A-Za-z0-9_]+$/.test(t) ? null : "加密版本格式不正确";
+    },
+    saveMsg: (v) => (v.trim() ? "加密版本已保存" : "已恢复默认加密版本"),
   },
   {
     key: BASE64_ALPHA_KEY,
     label: "加密字母表 (base64)",
-    hint: "64 个字符，默认深澜标准",
+    hint: "留空使用默认；64 个字符深澜标准",
     placeholder: DEFAULT_BASE64_ALPHA,
-    defaultValue: DEFAULT_BASE64_ALPHA,
+    defaultValue: "",
     validate: (v) => {
       const a = v.trim();
+      if (!a) return null;
       const chars = new Set(a);
       return a.length === 64 && chars.size === 64 && !/[^\x21-\x7e]/.test(a)
         ? null
         : "字母表需为 64 个互不相同的 ASCII 字符";
     },
-    saveMsg: () => "加密字母表已保存",
+    saveMsg: (v) => (v.trim() ? "加密字母表已保存" : "已恢复默认加密字母表"),
   },
 ];
 
@@ -142,12 +152,12 @@ const SECTIONS: { title: string; desc: string; keys: string[] }[] = [
   },
   {
     title: "认证服务器",
-    desc: "深澜网关地址与请求头，一般不需要改动。",
+    desc: "深澜网关地址与请求头，留空即使用默认值。",
     keys: [BASE_URL_KEY, USER_AGENT_KEY],
   },
   {
     title: "高级设置",
-    desc: "深澜网关兼容参数，用于适配其他学校。默认值即可满足大多数学校。",
+    desc: "深澜网关兼容参数，留空即使用默认值；仅适配其他学校网关时修改。",
     keys: [AC_ID_KEY, ENC_VER_KEY, BASE64_ALPHA_KEY],
   },
 ];

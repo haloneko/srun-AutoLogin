@@ -45,20 +45,24 @@ export function writeSetting(key: string, value: string): boolean {
   }
 }
 
+/// 认证服务器地址；返回存储的原始值（空字符串表示使用默认网关，后端兜底）
 export function readBaseUrl(): string {
-  return readSetting(BASE_URL_KEY) || DEFAULT_BASE_URL;
+  return readSetting(BASE_URL_KEY);
 }
 
+/// 认证组 ID；返回存储的原始值（空字符串表示使用默认值，后端兜底）
 export function readAcId(): string {
-  return readSetting(AC_ID_KEY) || DEFAULT_AC_ID;
+  return readSetting(AC_ID_KEY);
 }
 
+/// 加密版本；返回存储的原始值（空字符串表示使用默认值，后端兜底）
 export function readEncVer(): string {
-  return readSetting(ENC_VER_KEY) || DEFAULT_ENC_VER;
+  return readSetting(ENC_VER_KEY);
 }
 
+/// 加密字母表；返回存储的原始值（空字符串表示使用默认深澜字母表，后端兜底）
 export function readBase64Alpha(): string {
-  return readSetting(BASE64_ALPHA_KEY) || DEFAULT_BASE64_ALPHA;
+  return readSetting(BASE64_ALPHA_KEY);
 }
 
 /// 自定义 UA；返回存储的原始值（空字符串表示使用默认 UA）
