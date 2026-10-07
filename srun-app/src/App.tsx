@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import HeroButton from "./HeroButton";
 import SettingsPanel from "./SettingsPanel";
+import { IconClose, IconGear, IconRefresh } from "./icons/Icons";
 import {
   applyTheme,
   readAcId,
@@ -263,7 +264,7 @@ export default function App() {
           title="设置"
           aria-label="设置"
         >
-          ⚙
+          <IconGear size={20} />
         </button>
         <button
           type="button"
@@ -273,7 +274,7 @@ export default function App() {
           title="刷新状态"
           aria-label="刷新状态"
         >
-          ⟳
+          <IconRefresh size={20} />
         </button>
       </div>
       {toasts.length > 0 && (
@@ -287,7 +288,7 @@ export default function App() {
                 onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
                 aria-label="关闭通知"
               >
-                ✕
+                <IconClose size={12} />
               </button>
               <span className="toast__progress" aria-hidden />
             </div>

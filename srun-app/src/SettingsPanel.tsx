@@ -23,6 +23,7 @@ import {
   USER_AGENT_KEY,
   writeSetting,
 } from "./settings";
+import { IconCheck, IconClose, IconEye, IconEyeOff } from "./icons/Icons";
 import "./SettingsPanel.css";
 
 const THEME_OPTIONS: { value: ThemeMode; label: string; desc: string }[] = [
@@ -207,7 +208,7 @@ function SettingTextField({
             onClick={onTogglePwd}
             aria-label={showPwd ? "隐藏密码" : "显示密码"}
           >
-            {showPwd ? "🙈" : "👁"}
+            {showPwd ? <IconEyeOff size={15} /> : <IconEye size={15} />}
           </button>
         )}
         {dirty && (
@@ -218,7 +219,7 @@ function SettingTextField({
               onClick={onConfirm}
               aria-label={`确认保存${field.label}`}
             >
-              ✓
+              <IconCheck size={15} />
             </button>
             <button
               type="button"
@@ -226,7 +227,7 @@ function SettingTextField({
               onClick={onCancel}
               aria-label={`撤销${field.label}修改`}
             >
-              ✕
+              <IconClose size={15} />
             </button>
           </span>
         )}
@@ -334,7 +335,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
             onClick={onClose}
             aria-label="关闭设置"
           >
-            ✕
+            <IconClose size={13} />
           </button>
         </header>
 
