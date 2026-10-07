@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import HeroButton from "./HeroButton";
-import SettingsPanel, {
+import SettingsPanel from "./SettingsPanel";
+import {
   applyTheme,
   readAcId,
   readBase64Alpha,
@@ -11,7 +12,7 @@ import SettingsPanel, {
   readTheme,
   readUserAgent,
   writeLastOnline,
-} from "./SettingsPanel";
+} from "./settings";
 
 /// srun_portal 登录响应中的关键字段
 interface LoginResult {
