@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import HeroButton from "./HeroButton";
-import SettingsPanel, { readBaseUrl, readStartupMode, writeLastOnline } from "./SettingsPanel";
+import SettingsPanel, {
+  applyTheme,
+  readAcId,
+  readBaseUrl,
+  readEncVer,
+  readStartupMode,
+  readTheme,
+  writeLastOnline,
+} from "./SettingsPanel";
 
 /// srun_portal 登录响应中的关键字段
 interface LoginResult {
@@ -144,6 +152,7 @@ export default function App() {
 
   // 应用打开时查询当前在线状态，并按启动模式决定是否自动登录
   useEffect(() => {
+    applyTheme(readTheme());
     (async () => {
       const mode = readStartupMode();
       const hasCred =
@@ -208,6 +217,8 @@ export default function App() {
         username,
         password,
         baseUrl: readBaseUrl(),
+        acId: readAcId(),
+        encVer: readEncVer(),
       })) as LoginResult;
       if (res.error === "ok") {
         const ip = res.client_ip || res.online_ip || "";

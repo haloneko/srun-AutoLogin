@@ -25,32 +25,52 @@ pub fn extract_ip(user_info: &Value) -> String {
         .to_string()
 }
 
+/// 由加密版本（如 `srun_bx1`）派生 info 前缀（如 `{SRBX1}`），适配不同学校的加密版本。
+fn info_prefix(enc_ver: &str) -> String {
+    let ver = enc_ver.strip_prefix("srun_").unwrap_or(enc_ver);
+    // 去掉加密算法标识字母：如 "bx1" → "x1"，拼成 {SRBX1}
+    let num = ver.strip_prefix('b').unwrap_or(ver);
+    format!("{{SRB{}}}", num.to_ascii_uppercase())
+}
+
 /// 已知 `user_info` / `challenge` 后构造 portal 请求参数（纯函数）。
 ///
 /// 供 CLI `--dry-run` 与单元测试复用，避免重复实现加密链路。
-/// 字段顺序与 Python `login_params` 完全一致。
+/// 字段顺序与 Python `login_params` 完全一致。使用默认 `ac_id` / `enc_ver`。
 pub fn build_login_request(
     username: &str,
     password: &str,
     ip: &str,
     challenge: &str,
 ) -> Result<Vec<(String, String)>> {
+    build_login_request_ex(username, password, ip, challenge, AC_ID, ENC_VER)
+}
+
+/// 带自定义 `ac_id` / `enc_ver` 的请求构造版本（高级设置：适配其他学校的深澜网关）。
+pub fn build_login_request_ex(
+    username: &str,
+    password: &str,
+    ip: &str,
+    challenge: &str,
+    ac_id: &str,
+    enc_ver: &str,
+) -> Result<Vec<(String, String)>> {
     let info = LoginInfo {
         username,
         password,
         ip,
-        acid: AC_ID,
-        enc_ver: ENC_VER,
+        acid: ac_id,
+        enc_ver,
     };
     let encrypted_info_inner = encrypt_info(&info, challenge)?;
-    // info 字段值含 {SRBX1} 前缀（前缀是大括号字面量字符串）
-    let encrypted_info = format!("{{SRBX1}}{}", encrypted_info_inner);
+    // info 字段值含前缀（默认 {SRBX1}），前缀由加密版本派生
+    let encrypted_info = format!("{}{}", info_prefix(enc_ver), encrypted_info_inner);
     let encrypted_password = encrypt_password(password, challenge);
     let chksum = get_chkstr(
         &ChkstrData {
             username,
             encrypted_password: &encrypted_password,
-            ac_id: AC_ID,
+            ac_id,
             ip,
             n: N,
             type_: TYPE,
@@ -66,7 +86,7 @@ pub fn build_login_request(
         ("username".to_string(), username.to_string()),
         // password 字段值含 {MD5} 前缀
         ("password".to_string(), format!("{{MD5}}{}", encrypted_password)),
-        ("ac_id".to_string(), AC_ID.to_string()),
+        ("ac_id".to_string(), ac_id.to_string()),
         ("ip".to_string(), ip.to_string()),
         ("chksum".to_string(), chksum),
         ("info".to_string(), encrypted_info),
@@ -80,13 +100,24 @@ pub fn build_login_request(
     Ok(params)
 }
 
-/// 完整登录流程，对应 Python `login(username, password)`。
+/// 完整登录流程，对应 Python `login(username, password)`，使用默认 `ac_id` / `enc_ver`。
 ///
 /// 1. `get_user_info` → 提取 ip
 /// 2. `get_challenge` → 取 token
 /// 3. [`build_login_request`] 构造加密参数
 /// 4. `portal` 发起登录请求
 pub async fn login(http: &SrunHttp, username: &str, password: &str) -> Result<Value> {
+    login_ex(http, username, password, AC_ID, ENC_VER).await
+}
+
+/// 带自定义 `ac_id` / `enc_ver` 的完整登录流程（高级设置：适配其他学校的深澜网关）。
+pub async fn login_ex(
+    http: &SrunHttp,
+    username: &str,
+    password: &str,
+    ac_id: &str,
+    enc_ver: &str,
+) -> Result<Value> {
     let user_info = user::get_user_info(http).await?;
     let ip = extract_ip(&user_info);
     if ip.is_empty() {
@@ -97,7 +128,7 @@ pub async fn login(http: &SrunHttp, username: &str, password: &str) -> Result<Va
         .get("challenge")
         .and_then(|v| v.as_str())
         .ok_or(SrunError::MissingField("challenge"))?;
-    let params = build_login_request(username, password, &ip, challenge)?;
+    let params = build_login_request_ex(username, password, &ip, challenge, ac_id, enc_ver)?;
     let owned: Vec<(&str, String)> = params
         .iter()
         .map(|(k, v)| (k.as_str(), v.clone()))
