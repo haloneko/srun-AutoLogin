@@ -12,6 +12,7 @@ export const BASE64_ALPHA_KEY = "srun.base64Alpha";
 export const USER_AGENT_KEY = "srun.userAgent";
 export const THEME_KEY = "srun.theme";
 export const STARTUP_MODE_KEY = "srun.startupMode";
+export const SILENT_START_KEY = "srun.silentStart";
 export const LAST_ONLINE_KEY = "srun.lastOnline";
 
 export const DEFAULT_BASE_URL = "https://wlrz.sdmu.edu.cn/";
@@ -109,6 +110,11 @@ export function applyTheme(theme: ThemeMode) {
 export function readStartupMode(): StartupMode {
   const v = readSetting(STARTUP_MODE_KEY);
   return v === "auto" || v === "manual" || v === "remember" ? v : "manual";
+}
+
+/// 静默启动：启动后隐藏主窗口，仅驻留系统托盘（默认开启，值为 "0" 时关闭）
+export function readSilentStart(): boolean {
+  return readSetting(SILENT_START_KEY) !== "0";
 }
 
 /// 记录最近一次在线状态，供「记录过去状态」模式在下次启动时判断

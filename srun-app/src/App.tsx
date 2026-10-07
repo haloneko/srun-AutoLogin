@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import HeroButton from "./HeroButton";
 import SettingsPanel from "./SettingsPanel";
 import { IconClose, IconGear, IconRefresh } from "./icons/Icons";
 import {
   applyTheme,
+  readSilentStart,
   readStartupMode,
   readTheme,
   toLoginOptions,
@@ -153,6 +155,11 @@ export default function App() {
   // 应用打开时查询当前在线状态，并按启动模式决定是否自动登录
   useEffect(() => {
     applyTheme(readTheme());
+    // 窗口默认隐藏（tauri.conf.json visible:false）：静默启动开启则保持托盘驻留，
+    // 开发模式或关闭静默启动时显示主窗口
+    if (import.meta.env.DEV || !readSilentStart()) {
+      void getCurrentWindow().show();
+    }
     (async () => {
       const mode = readStartupMode();
       const hasCred =

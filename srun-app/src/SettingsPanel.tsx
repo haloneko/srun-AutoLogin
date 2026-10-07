@@ -13,8 +13,10 @@ import {
   ENC_VER_KEY,
   PASSWORD_KEY,
   readSetting,
+  readSilentStart,
   readStartupMode,
   readTheme,
+  SILENT_START_KEY,
   STARTUP_MODE_KEY,
   StartupMode,
   ThemeMode,
@@ -251,6 +253,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
   const [autostart, setAutostart] = useState(false);
   const [autostartLoading, setAutostartLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
+  const [silentStart, setSilentStart] = useState(true);
 
   // 打开抽屉时载入已保存的值，并查询开机自启动状态
   useEffect(() => {
@@ -261,6 +264,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
     setSaved({ ...loaded });
     setTheme(readTheme());
     setStartupMode(readStartupMode());
+    setSilentStart(readSilentStart());
     setShowPwd(false);
     invoke<boolean>("autostart_enabled")
       .then(setAutostart)
@@ -291,6 +295,14 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
     } finally {
       setAutostartLoading(false);
     }
+  }
+
+  function toggleSilentStart(next: boolean) {
+    setSilentStart(next);
+    const ok = writeSetting(SILENT_START_KEY, next ? "1" : "0");
+    onToast(
+      ok ? (next ? "已开启静默启动" : "已关闭静默启动") : "保存失败：本地存储不可用",
+    );
   }
 
   function isDirty(f: TextFieldDef): boolean {
@@ -378,6 +390,23 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
                 aria-checked={autostart}
                 className={`settings-switch${autostart ? " settings-switch--on" : ""}`}
                 onClick={() => void toggleAutostart(!autostart)}
+              >
+                <span className="settings-switch__knob" />
+              </button>
+            </label>
+            <label className="settings-field settings-field--row">
+              <span className="settings-field__label">
+                静默启动
+                <span className="settings-field__hint">
+                  启动后隐藏主窗口，仅驻留系统托盘（默认开启）
+                </span>
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={silentStart}
+                className={`settings-switch${silentStart ? " settings-switch--on" : ""}`}
+                onClick={() => toggleSilentStart(!silentStart)}
               >
                 <span className="settings-switch__knob" />
               </button>
