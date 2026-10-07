@@ -5,7 +5,9 @@
 
 use crate::api::now_millis;
 use crate::api::{challenge, user};
-use crate::config::{AC_ID, DOUBLE_STACK, ENC_VER, NAME, N, OS, SRUN_BASE64_ALPHA, TYPE};
+use crate::config::{
+    AC_ID, BASE_URL, DOUBLE_STACK, ENC_VER, NAME, N, OS, SRUN_BASE64_ALPHA, TYPE, USER_AGENT,
+};
 use crate::encrypt::chkstr::{get_chkstr, ChkstrData};
 use crate::encrypt::info::{encrypt_info_with_alpha, LoginInfo};
 use crate::encrypt::password::encrypt_password;
@@ -102,42 +104,100 @@ pub fn build_login_request_ex(
     Ok(params)
 }
 
-/// 完整登录流程，对应 Python `login(username, password)`，使用默认 `ac_id` / `enc_ver`。
+/// 网关兼容参数对象：一处定义，登录 / 状态 / 注销请求统一消费。
+///
+/// 全部字段可留空——空白字段经 [`SrunLoginOptions::normalize`] 回退到
+/// [`config`](crate::config) 内置默认值，上层（Tauri / CLI）直接透传用户输入即可。
+#[derive(Debug, Clone)]
+pub struct SrunLoginOptions {
+    /// 认证服务器地址（如 `https://wlrz.sdmu.edu.cn/`）
+    pub base_url: String,
+    /// 认证组 ID（如 `1`）
+    pub ac_id: String,
+    /// 加密版本（如 `srun_bx1`）
+    pub enc_ver: String,
+    /// 深澜 Base64 字母表（64 字符）
+    pub base64_alpha: String,
+    /// User-Agent（如 `Mozilla/5.0 ...`）
+    pub user_agent: String,
+}
+
+impl SrunLoginOptions {
+    /// 全部字段使用内置默认值（默认网关 / 默认加密参数）
+    pub fn defaults() -> Self {
+        Self {
+            base_url: BASE_URL.to_string(),
+            ac_id: AC_ID.to_string(),
+            enc_ver: ENC_VER.to_string(),
+            base64_alpha: SRUN_BASE64_ALPHA.to_string(),
+            user_agent: USER_AGENT.to_string(),
+        }
+    }
+
+    /// 空白字段回退到默认值（空 = 使用默认）
+    pub fn normalize(&mut self) {
+        if self.base_url.trim().is_empty() {
+            self.base_url = BASE_URL.to_string();
+        }
+        if self.ac_id.trim().is_empty() {
+            self.ac_id = AC_ID.to_string();
+        }
+        if self.enc_ver.trim().is_empty() {
+            self.enc_ver = ENC_VER.to_string();
+        }
+        if self.base64_alpha.trim().is_empty() {
+            self.base64_alpha = SRUN_BASE64_ALPHA.to_string();
+        }
+        if self.user_agent.trim().is_empty() {
+            self.user_agent = USER_AGENT.to_string();
+        }
+    }
+}
+
+/// 完整登录流程，对应 Python `login(username, password)`，全部使用默认网关配置。
 ///
 /// 1. `get_user_info` → 提取 ip
 /// 2. `get_challenge` → 取 token
 /// 3. [`build_login_request`] 构造加密参数
 /// 4. `portal` 发起登录请求
-pub async fn login(http: &SrunHttp, username: &str, password: &str) -> Result<Value> {
-    login_ex(http, username, password, AC_ID, ENC_VER, SRUN_BASE64_ALPHA).await
+pub async fn login(username: &str, password: &str) -> Result<Value> {
+    login_ex(username, password, &SrunLoginOptions::defaults()).await
 }
 
-/// 带自定义 `ac_id` / `enc_ver` / `base64_alpha` 的完整登录流程
+/// 带自定义网关参数（[`SrunLoginOptions`]）的完整登录流程
 /// （高级设置：适配其他学校的深澜网关）。
+///
+/// 根据 `options.base_url` / `options.user_agent` 自行构造 HTTP 客户端。
 pub async fn login_ex(
-    http: &SrunHttp,
     username: &str,
     password: &str,
-    ac_id: &str,
-    enc_ver: &str,
-    base64_alpha: &str,
+    options: &SrunLoginOptions,
 ) -> Result<Value> {
-    let user_info = user::get_user_info(http).await?;
+    let http = SrunHttp::with_base_url_and_ua(&options.base_url, &options.user_agent)?;
+    let user_info = user::get_user_info(&http).await?;
     let ip = extract_ip(&user_info);
     if ip.is_empty() {
         return Err(SrunError::MissingField("client_ip/online_ip"));
     }
-    let challenge_val = challenge::get_challenge(http, username, &ip).await?;
+    let challenge_val = challenge::get_challenge(&http, username, &ip).await?;
     let challenge = challenge_val
         .get("challenge")
         .and_then(|v| v.as_str())
         .ok_or(SrunError::MissingField("challenge"))?;
-    let params = build_login_request_ex(username, password, &ip, challenge, ac_id, enc_ver, base64_alpha)?;
+    let params = build_login_request_ex(
+        username,
+        password,
+        &ip,
+        challenge,
+        &options.ac_id,
+        &options.enc_ver,
+        &options.base64_alpha,
+    )?;
     let owned: Vec<(&str, String)> = params
         .iter()
         .map(|(k, v)| (k.as_str(), v.clone()))
         .collect();
-    let res = user::portal(http, &owned).await?;
+    let res = user::portal(&http, &owned).await?;
     Ok(res)
 }
 
@@ -148,8 +208,41 @@ mod tests {
     use wiremock::matchers::{method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
-    fn make_http(uri: &str) -> SrunHttp {
-        SrunHttp::with_base_url(uri).expect("构造测试 SrunHttp 失败")
+    /// 以 wiremock 地址为 base_url 构造网关参数（其余字段用默认值）
+    fn test_options(uri: &str) -> SrunLoginOptions {
+        SrunLoginOptions {
+            base_url: uri.to_string(),
+            ..SrunLoginOptions::defaults()
+        }
+    }
+
+    /// `defaults()` 应全部使用内置默认配置，且无空白字段
+    #[test]
+    fn options_defaults_are_complete() {
+        let opts = SrunLoginOptions::defaults();
+        assert_eq!(opts.base_url, BASE_URL);
+        assert_eq!(opts.ac_id, AC_ID);
+        assert_eq!(opts.enc_ver, ENC_VER);
+        assert_eq!(opts.base64_alpha, SRUN_BASE64_ALPHA);
+        assert_eq!(opts.user_agent, USER_AGENT);
+    }
+
+    /// `normalize()` 空白字段回退默认，非空白字段保留
+    #[test]
+    fn options_normalize_fills_blank_fields() {
+        let mut opts = SrunLoginOptions {
+            base_url: String::new(),
+            ac_id: "  ".to_string(),
+            enc_ver: "custom_ver".to_string(),
+            base64_alpha: String::new(),
+            user_agent: String::new(),
+        };
+        opts.normalize();
+        assert_eq!(opts.base_url, BASE_URL);
+        assert_eq!(opts.ac_id, AC_ID);
+        assert_eq!(opts.enc_ver, "custom_ver");
+        assert_eq!(opts.base64_alpha, SRUN_BASE64_ALPHA);
+        assert_eq!(opts.user_agent, USER_AGENT);
     }
 
     /// `extract_ip` 应优先取 `client_ip`
@@ -273,8 +366,8 @@ mod tests {
             .mount(&server)
             .await;
 
-        let http = make_http(&base);
-        let res = login(&http, "user1", "pass1").await.unwrap();
+        let options = test_options(&base);
+        let res = login_ex("user1", "pass1", &options).await.unwrap();
         assert_eq!(res["error"], "ok");
         assert_eq!(res["online_ip"], "192.0.2.1");
     }
@@ -288,8 +381,8 @@ mod tests {
             .respond_with(ResponseTemplate::new(200).set_body_string(r#"callback({"other":"x"})"#))
             .mount(&server)
             .await;
-        let http = make_http(&server.uri());
-        let err = login(&http, "u", "p").await.unwrap_err();
+        let options = test_options(&server.uri());
+        let err = login_ex("u", "p", &options).await.unwrap_err();
         assert!(matches!(err, SrunError::MissingField(_)), "got: {err:?}");
     }
 
@@ -309,8 +402,8 @@ mod tests {
             .respond_with(ResponseTemplate::new(200).set_body_string(r#"callback({"error":"ok"})"#))
             .mount(&server)
             .await;
-        let http = make_http(&server.uri());
-        let err = login(&http, "u", "p").await.unwrap_err();
+        let options = test_options(&server.uri());
+        let err = login_ex("u", "p", &options).await.unwrap_err();
         assert!(matches!(err, SrunError::MissingField(_)), "got: {err:?}");
     }
 }

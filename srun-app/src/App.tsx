@@ -5,13 +5,9 @@ import SettingsPanel from "./SettingsPanel";
 import { IconClose, IconGear, IconRefresh } from "./icons/Icons";
 import {
   applyTheme,
-  readAcId,
-  readBase64Alpha,
-  readBaseUrl,
-  readEncVer,
   readStartupMode,
   readTheme,
-  readUserAgent,
+  toLoginOptions,
   writeLastOnline,
 } from "./settings";
 
@@ -127,8 +123,7 @@ export default function App() {
     setRefreshing(true);
     try {
       const s = await invoke<OnlineStatus>("srun_status", {
-        baseUrl: readBaseUrl(),
-        userAgent: readUserAgent(),
+        options: toLoginOptions(),
       });
       setInfo(s);
       setInfoError("");
@@ -184,8 +179,7 @@ export default function App() {
     setStatus({ kind: "loggingOut" });
     try {
       const res = (await invoke("srun_logout", {
-        baseUrl: readBaseUrl(),
-        userAgent: readUserAgent(),
+        options: toLoginOptions(),
       })) as {
         error: string;
         error_msg?: string;
@@ -224,11 +218,7 @@ export default function App() {
       const res = (await invoke("srun_login", {
         username,
         password,
-        baseUrl: readBaseUrl(),
-        acId: readAcId(),
-        encVer: readEncVer(),
-        base64Alpha: readBase64Alpha(),
-        userAgent: readUserAgent(),
+        options: toLoginOptions(),
       })) as LoginResult;
       if (res.error === "ok") {
         const ip = res.client_ip || res.online_ip || "";

@@ -70,6 +70,27 @@ export function readUserAgent(): string {
   return readSetting(USER_AGENT_KEY);
 }
 
+/// 网关兼容参数：与 Tauri `GatewayOptions` / 核心 `SrunLoginOptions` 字段一一对应，
+/// 登录 / 状态 / 注销三个 command 统一消费的唯一对象。
+export interface GatewayOptions {
+  baseUrl: string;
+  acId: string;
+  encVer: string;
+  base64Alpha: string;
+  userAgent: string;
+}
+
+/// 从当前设置组装网关参数（空字段 = 后端回退默认值）
+export function toLoginOptions(): GatewayOptions {
+  return {
+    baseUrl: readBaseUrl(),
+    acId: readAcId(),
+    encVer: readEncVer(),
+    base64Alpha: readBase64Alpha(),
+    userAgent: readUserAgent(),
+  };
+}
+
 export function readTheme(): ThemeMode {
   const v = readSetting(THEME_KEY);
   return v === "light" || v === "dark" || v === "system" ? v : "system";
