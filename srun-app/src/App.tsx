@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import HeroButton from "./HeroButton";
@@ -6,6 +7,7 @@ import SettingsPanel from "./SettingsPanel";
 import { IconClose, IconGear, IconRefresh } from "./icons/Icons";
 import {
   applyTheme,
+  readAutostartVersion,
   readSilentStart,
   readStartupMode,
   readTheme,
@@ -13,6 +15,7 @@ import {
   readWifiPassword,
   readWifiSsid,
   toLoginOptions,
+  writeAutostartVersion,
   writeLastOnline,
 } from "./settings";
 
@@ -220,6 +223,23 @@ export default function App() {
         }
       } catch {
         // 查询失败时保持现状：手动启动已由后端显示，自启动保持托盘驻留
+      }
+    })();
+    (async () => {
+      // 自启动兼容：老版本写入的 Run 项可能没带 --silent，升级后自启动会弹出主窗口。
+      // 当前版本与上次记录的版本不一致才处理——开了自启动就复用插件重写一遍（自动带上参数），
+      // 没开则只记版本；用户之后开启时插件写入的本来就是带参数的正确条目。
+      // 任一环节失败都不影响主流程，等下次启动再补。
+      try {
+        const current = await getVersion();
+        if (readAutostartVersion() !== current) {
+          if (await invoke<boolean>("autostart_enabled")) {
+            await invoke("autostart_set", { enable: true });
+          }
+          writeAutostartVersion(current);
+        }
+      } catch {
+        /* 忽略 */
       }
     })();
     (async () => {
