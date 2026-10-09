@@ -10,12 +10,14 @@ import {
   DEFAULT_BASE_URL,
   DEFAULT_ENC_VER,
   DEFAULT_USER_AGENT,
+  DEFAULT_WIFI_SSID,
   ENC_VER_KEY,
   PASSWORD_KEY,
   readSetting,
   readSilentStart,
   readStartupMode,
   readTheme,
+  readWifiMode,
   SILENT_START_KEY,
   STARTUP_MODE_KEY,
   StartupMode,
@@ -23,6 +25,10 @@ import {
   THEME_KEY,
   USERNAME_KEY,
   USER_AGENT_KEY,
+  WIFI_MODE_KEY,
+  WIFI_PASSWORD_KEY,
+  WIFI_SSID_KEY,
+  WifiMode,
   writeSetting,
 } from "./settings";
 import { IconCheck, IconClose, IconEye, IconEyeOff } from "./icons/Icons";
@@ -38,6 +44,19 @@ const STARTUP_OPTIONS: { value: StartupMode; label: string; desc: string }[] = [
   { value: "auto", label: "自动连接", desc: "打开软件后自动登录" },
   { value: "manual", label: "不自动连接", desc: "打开后仅查看状态，需手动登录" },
   { value: "remember", label: "记录过去状态", desc: "上次在线则自动重连，否则不连" },
+];
+
+const WIFI_OPTIONS: { value: WifiMode; label: string; desc: string }[] = [
+  {
+    value: "auto",
+    label: "未连接时自动连接",
+    desc: "当前未连接 WiFi 时，自动连接校园网 WiFi",
+  },
+  {
+    value: "always",
+    label: "始终自动连接",
+    desc: "忽略当前网络，始终自动连接校园网 WiFi",
+  },
 ];
 
 /// 一个「文本输入 + 确认/撤销」型设置项的声明式定义。
@@ -101,6 +120,29 @@ const TEXT_FIELDS: TextFieldDef[] = [
     saveMsg: (v) => (v.trim() ? "User-Agent 已保存" : "已恢复默认 User-Agent"),
   },
   {
+    key: WIFI_SSID_KEY,
+    label: "自动连接 WiFi (SSID)",
+    hint: "留空使用默认",
+    placeholder: DEFAULT_WIFI_SSID,
+    defaultValue: "",
+    validate: (v) => {
+      const t = v.trim();
+      return !t || !/[\x00-\x1f\x7f]/.test(t) ? null : "SSID 不能包含换行或控制字符";
+    },
+    saveMsg: (v) => (v.trim() ? "WiFi 名称已保存" : "已恢复默认 WiFi 名称"),
+  },
+  {
+    key: WIFI_PASSWORD_KEY,
+    label: "WiFi 密码",
+    hint: "留空表示无密码",
+    placeholder: "无密码留空",
+    defaultValue: "",
+    secret: true,
+    autoComplete: "current-password",
+    validate: () => null,
+    saveMsg: () => "WiFi 密码已保存",
+  },
+  {
     key: AC_ID_KEY,
     label: "认证组 ID (ac_id)",
     hint: "留空使用默认；多数学校为 1",
@@ -157,6 +199,11 @@ const SECTIONS: { title: string; desc: string; keys: string[] }[] = [
     title: "认证服务器",
     desc: "深澜网关地址与请求头，留空即使用默认值。",
     keys: [BASE_URL_KEY, USER_AGENT_KEY],
+  },
+  {
+    title: "WiFi 自动连接",
+    desc: "开机静默启动后自动连接校园 WiFi，SSID 留空使用默认，密码留空表示无密码。",
+    keys: [WIFI_SSID_KEY, WIFI_PASSWORD_KEY],
   },
   {
     title: "高级设置",
@@ -254,6 +301,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
   const [autostartLoading, setAutostartLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [silentStart, setSilentStart] = useState(true);
+  const [wifiMode, setWifiMode] = useState<WifiMode>("auto");
 
   // 打开抽屉时载入已保存的值，并查询开机自启动状态
   useEffect(() => {
@@ -265,6 +313,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
     setTheme(readTheme());
     setStartupMode(readStartupMode());
     setSilentStart(readSilentStart());
+    setWifiMode(readWifiMode());
     setShowPwd(false);
     invoke<boolean>("autostart_enabled")
       .then(setAutostart)
@@ -428,6 +477,36 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
                         setStartupMode(o.value);
                         writeSetting(STARTUP_MODE_KEY, o.value);
                         onToast(`启动行为已设为「${o.label}」`);
+                      }}
+                    />
+                    <span className="settings-option__label">{o.label}</span>
+                    <span className="settings-option__desc">{o.desc}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="settings-field">
+              <span className="settings-field__label">
+                自动连接 WiFi
+                <span className="settings-field__hint">
+                  开机后按以下策略连接校园网 WiFi
+                </span>
+              </span>
+              <div className="settings-options">
+                {WIFI_OPTIONS.map((o) => (
+                  <label
+                    key={o.value}
+                    className={`settings-option${wifiMode === o.value ? " settings-option--on" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="wifi-mode"
+                      className="settings-option__radio"
+                      checked={wifiMode === o.value}
+                      onChange={() => {
+                        setWifiMode(o.value);
+                        writeSetting(WIFI_MODE_KEY, o.value);
+                        onToast(`WiFi 自动连接已设为「${o.label}」`);
                       }}
                     />
                     <span className="settings-option__label">{o.label}</span>
