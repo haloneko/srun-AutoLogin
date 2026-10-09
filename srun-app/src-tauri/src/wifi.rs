@@ -225,7 +225,9 @@ pub fn connect(ssid: &str, password: &str) -> Result<WifiConnectResult, String> 
         });
     }
 
-    if !available_ssids().iter().any(|s| s == ssid) {
+    // 仅当扫描确实有结果时才据此否决；列表为空可能只是 WLAN 服务没扫完（开机自启动），照常 connect。
+    let visible = available_ssids();
+    if !visible.is_empty() && !visible.iter().any(|s| s == ssid) {
         return Err(format!("未找到网络「{ssid}」，请确认 WiFi 已开启且在信号范围内"));
     }
 

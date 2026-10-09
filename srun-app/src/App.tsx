@@ -95,6 +95,10 @@ export default function App() {
   const toastId = useRef(0);
   /// 登录成功后延迟查询在线状态的定时器（网关数据同步有延迟）
   const loginCheckTimer = useRef<number | null>(null);
+  /// 「未连接时自动连接」模式下，因当前已连在别的网络上而主动跳过切换时，
+  /// 记下当时的网络名。此后在线状态查询必然因校园网网关不可达而失败，
+  /// 用它把原始报错换成一句能看懂的说明。
+  const wifiSkipped = useRef<string | null>(null);
 
   /// 登录成功后延迟 2s 查询在线状态，若网关尚未同步（仍离线）则每隔 2s 重查，最多 retries 次
   function schedulePostLoginCheck(retries = 3) {
@@ -132,6 +136,8 @@ export default function App() {
       });
       setInfo(s);
       setInfoError("");
+      // 查询成功说明校园网可达，之前记录的「主动跳过」不再适用
+      wifiSkipped.current = null;
       // 大按钮状态与在线状态同步：已在线 →「已连接」；离线 →「未登录」
       if (!preserveStatus) {
         setStatus((prev) =>
@@ -147,7 +153,14 @@ export default function App() {
       if (notify) showToast(s.online ? "状态已更新" : "状态已更新（离线）");
       return s;
     } catch (err) {
-      setInfoError(String(err));
+      // 若是「未连接时自动连接」模式下主动跳过了切换，网关不可达属于预期内：
+      // 替换掉原始报错，避免用户以为自己哪里配错了。
+      const skipped = wifiSkipped.current;
+      setInfoError(
+        skipped
+          ? `当前连接的是「${skipped}」，不是校园网，已按设置跳过自动切换；需要登录校园网时点击下方按钮即可。`
+          : String(err),
+      );
       if (notify) showToast(`刷新失败：${String(err)}`);
       return null;
     } finally {
@@ -155,12 +168,8 @@ export default function App() {
     }
   }
 
-  /// 确保连上目标校园网 WiFi。
-  ///
-  /// `force=true`（手动点击连接）时无条件切换，不看设置；
-  /// `force=false`（开机启动）时遵守设置：`always` 无条件连接，`auto` 仅当前 SSID 不同时连接。
-  /// 实际执行了连接时等待 DHCP 获取地址，避免紧接着的状态查询打到未就绪的网络；
-  /// 连接失败静默跳过，不阻塞后续登录检查。
+  /// 连上校园网 WiFi：手动点击（`force`）无条件切换；开机启动按设置——`always` 不在目标
+  /// 就切，`auto` 仅在完全没连 WiFi 时才切（别合并成同一个条件，否则 `auto` 会强切热点）。
   async function ensureWifi(force = false): Promise<void> {
     const wifiSsid = readWifiSsid();
     if (!wifiSsid) return;
@@ -169,12 +178,21 @@ export default function App() {
         connected: boolean;
         ssid: string | null;
       }>("wifi_status");
-      const need =
-        force ||
-        readWifiMode() === "always" ||
-        !cur.connected ||
-        (cur.ssid ?? "") !== wifiSsid;
-      if (!need) return;
+      const onTarget = cur.connected && (cur.ssid ?? "") === wifiSsid;
+      const mode = readWifiMode();
+      const need = force || (mode === "always" ? !onTarget : !cur.connected);
+      // 只有「未连接时自动连接」+ 已连在别的网络上，才算按设置主动跳过切换
+      const skipped =
+        !force && mode === "auto" && cur.connected && !onTarget
+          ? (cur.ssid ?? "")
+          : null;
+      wifiSkipped.current = skipped;
+      if (!need) {
+        if (skipped) {
+          showToast(`当前为「${skipped}」，已按设置跳过连接 ${wifiSsid}`);
+        }
+        return;
+      }
       showToast(`正在连接 ${wifiSsid}…`);
       const res = await invoke<{ connected: boolean; message: string }>(
         "wifi_connect",
