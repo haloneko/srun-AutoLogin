@@ -193,11 +193,15 @@ export default function App() {
     applyTheme(readTheme());
     (async () => {
       // 窗口默认隐藏（tauri.conf.json visible:false）。
-      // 显示规则：非自启动（手动启动 / 开发模式）100% 显示主窗口；
-      // 仅开机自启动拉起时按「静默启动」设置决定是否保持托盘隐藏。
-      const autoLaunch = await invoke<boolean>("is_autostart_launch");
-      if (import.meta.env.DEV || !autoLaunch || !readSilentStart()) {
-        void getCurrentWindow().show();
+      // 手动启动的显示已由后端 setup 直接保证（不依赖前端）；
+      // 此处仅处理「开机自启动（--silent）但未开启静默启动」这一种需补显示的情况。
+      try {
+        const autoLaunch = await invoke<boolean>("is_autostart_launch");
+        if (autoLaunch && !readSilentStart()) {
+          void getCurrentWindow().show();
+        }
+      } catch {
+        // 查询失败时保持现状：手动启动已由后端显示，自启动保持托盘驻留
       }
     })();
     (async () => {
