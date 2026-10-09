@@ -191,11 +191,15 @@ export default function App() {
   // 应用打开时查询当前在线状态，并按启动模式决定是否自动登录
   useEffect(() => {
     applyTheme(readTheme());
-    // 窗口默认隐藏（tauri.conf.json visible:false）：静默启动开启则保持托盘驻留，
-    // 开发模式或关闭静默启动时显示主窗口
-    if (import.meta.env.DEV || !readSilentStart()) {
-      void getCurrentWindow().show();
-    }
+    (async () => {
+      // 窗口默认隐藏（tauri.conf.json visible:false）。
+      // 显示规则：非自启动（手动启动 / 开发模式）100% 显示主窗口；
+      // 仅开机自启动拉起时按「静默启动」设置决定是否保持托盘隐藏。
+      const autoLaunch = await invoke<boolean>("is_autostart_launch");
+      if (import.meta.env.DEV || !autoLaunch || !readSilentStart()) {
+        void getCurrentWindow().show();
+      }
+    })();
     (async () => {
       const mode = readStartupMode();
       const hasCred =

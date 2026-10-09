@@ -177,13 +177,31 @@ fn wifi_connect(ssid: String, password: Option<String>) -> Result<wifi::WifiConn
     wifi::connect(&ssid, password.as_deref().unwrap_or(""))
 }
 
+/// 开机自启动拉起时附加的命令行参数，用于区分「自启动」与「用户手动启动」。
+/// 自启动隐藏、手动启动显示主窗口，依赖该标记判断。
+const AUTOSTART_FLAG: &str = "--silent";
+
+/// 当前进程是否为开机自启动拉起（命令行含 `--silent` 标记）。
+/// 自启动附加该参数见 `run()` 中 autostart 插件初始化。
+#[tauri::command]
+fn is_autostart_launch() -> bool {
+    std::env::args().any(|a| a == AUTOSTART_FLAG)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            // 第二次启动：不新建实例，唤出已有窗口
-            show_main_window(app);
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            // 自启动时附加 --silent：应用据此隐藏主窗口，仅驻留托盘
+            Some(vec![AUTOSTART_FLAG]),
+        ))
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // 第二次启动：不新建实例。
+            // 手动启动（无 --silent）唤出已有窗口；自启动重复拉起则保持后台驻留。
+            if !args.iter().any(|a| a == AUTOSTART_FLAG) {
+                show_main_window(app);
+            }
         }))
         .setup(|app| {
             setup_tray(app)?;
@@ -202,6 +220,7 @@ pub fn run() {
             srun_logout,
             autostart_enabled,
             autostart_set,
+            is_autostart_launch,
             wifi_status,
             wifi_connect
         ])
