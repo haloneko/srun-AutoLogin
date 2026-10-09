@@ -9,6 +9,9 @@ import {
   readSilentStart,
   readStartupMode,
   readTheme,
+  readWifiMode,
+  readWifiPassword,
+  readWifiSsid,
   toLoginOptions,
   writeLastOnline,
 } from "./settings";
@@ -152,6 +155,39 @@ export default function App() {
     }
   }
 
+  /// 确保连上目标校园网 WiFi。
+  ///
+  /// `force=true`（手动点击连接）时无条件切换，不看设置；
+  /// `force=false`（开机启动）时遵守设置：`always` 无条件连接，`auto` 仅当前 SSID 不同时连接。
+  /// 实际执行了连接时等待 DHCP 获取地址，避免紧接着的状态查询打到未就绪的网络；
+  /// 连接失败静默跳过，不阻塞后续登录检查。
+  async function ensureWifi(force = false): Promise<void> {
+    const wifiSsid = readWifiSsid();
+    if (!wifiSsid) return;
+    try {
+      const cur = await invoke<{
+        connected: boolean;
+        ssid: string | null;
+      }>("wifi_status");
+      const need =
+        force ||
+        readWifiMode() === "always" ||
+        !cur.connected ||
+        (cur.ssid ?? "") !== wifiSsid;
+      if (!need) return;
+      showToast(`正在连接 ${wifiSsid}…`);
+      const res = await invoke<{ connected: boolean; message: string }>(
+        "wifi_connect",
+        { ssid: wifiSsid, password: readWifiPassword() },
+      );
+      if (res.connected) {
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    } catch {
+      // WiFi 连接失败不影响后续状态检查与自动登录
+    }
+  }
+
   // 应用打开时查询当前在线状态，并按启动模式决定是否自动登录
   useEffect(() => {
     applyTheme(readTheme());
@@ -166,6 +202,8 @@ export default function App() {
         readCredential(CRED_USERNAME_KEY).trim() && readCredential(CRED_PASSWORD_KEY);
       // 「记录过去状态」：以上次记录的在线状态为准（先于本次刷新读取）
       const lastOnline = localStorage.getItem("srun.lastOnline") === "1";
+      // 先确保连上校园网 WiFi，再查在线状态
+      await ensureWifi();
       const s = await refreshStatus();
       const shouldAuto =
         hasCred && (mode === "auto" || (mode === "remember" && lastOnline));
@@ -208,12 +246,17 @@ export default function App() {
     if (status.kind === "success") {
       void handleLogout();
     } else {
-      void handleLogin();
+      // 手动点击连接：先无条件切到校园网 WiFi（不看设置），再登录
+      void handleLogin(true);
     }
   }
 
-  async function handleLogin() {
+  async function handleLogin(wifiFirst = false) {
     if (status.kind === "loading" || status.kind === "loggingOut") return;
+    // 手动路径：先切 WiFi 再登录；启动路径（默认 false）已由 ensureWifi(false) 处理
+    if (wifiFirst) {
+      await ensureWifi(true);
+    }
     const username = readCredential(CRED_USERNAME_KEY).trim();
     const password = readCredential(CRED_PASSWORD_KEY);
     if (!username || !password) {

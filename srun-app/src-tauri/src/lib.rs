@@ -7,6 +7,8 @@ use serde_json::Value;
 use srun_core::http::SrunHttp;
 use srun_core::login::SrunLoginOptions;
 use srun_core::status::OnlineStatus;
+mod wifi;
+
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager};
@@ -157,6 +159,24 @@ async fn srun_logout(options: GatewayOptions) -> Result<Value, String> {
         .map_err(|e| e.to_string())
 }
 
+/// 当前无线连接状态 command：前端 `invoke("wifi_status")` 调用。
+///
+/// 无网卡 / WLAN 服务未启动 / 接口禁用时返回 `interface_ready=false`，
+/// 由前端据此决定是否跳过自动连接。
+#[tauri::command]
+fn wifi_status() -> wifi::WifiStatus {
+    wifi::current_status()
+}
+
+/// 连接指定 WiFi command：前端 `invoke("wifi_connect", { ssid, password })` 调用。
+///
+/// `password` 可缺省（开放网络或已保存过密码的网络）。返回 [`wifi::WifiConnectResult`]，
+/// 其中 `connected=true` 表示本次实际执行了连接，前端可据此等待 DHCP 就绪后再查状态。
+#[tauri::command]
+fn wifi_connect(ssid: String, password: Option<String>) -> Result<wifi::WifiConnectResult, String> {
+    wifi::connect(&ssid, password.as_deref().unwrap_or(""))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -181,7 +201,9 @@ pub fn run() {
             srun_status,
             srun_logout,
             autostart_enabled,
-            autostart_set
+            autostart_set,
+            wifi_status,
+            wifi_connect
         ])
         .run(tauri::generate_context!())
         .expect("Tauri 应用启动失败");

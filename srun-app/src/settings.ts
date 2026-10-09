@@ -13,11 +13,16 @@ export const USER_AGENT_KEY = "srun.userAgent";
 export const THEME_KEY = "srun.theme";
 export const STARTUP_MODE_KEY = "srun.startupMode";
 export const SILENT_START_KEY = "srun.silentStart";
+export const WIFI_MODE_KEY = "srun.wifiMode";
+export const WIFI_SSID_KEY = "srun.wifiSsid";
+export const WIFI_PASSWORD_KEY = "srun.wifiPassword";
 export const LAST_ONLINE_KEY = "srun.lastOnline";
 
 export const DEFAULT_BASE_URL = "https://wlrz.sdmu.edu.cn/";
 export const DEFAULT_AC_ID = "1";
 export const DEFAULT_ENC_VER = "srun_bx1";
+/// 自动连接 WiFi 的默认 SSID（留空时使用该值）
+export const DEFAULT_WIFI_SSID = "SDMU-5G";
 export const DEFAULT_BASE64_ALPHA =
   "LVoJPiCN2R8G90yg+hmFHuacZ1OWMnrsSTXkYpUq/3dlbfKwv6xztjI7DeBE45QA";
 /// 与 srun-core `config::USER_AGENT` 保持一致；留空时后端使用该默认值
@@ -26,6 +31,8 @@ export const DEFAULT_USER_AGENT =
 
 export type StartupMode = "auto" | "manual" | "remember";
 export type ThemeMode = "system" | "light" | "dark";
+/// WiFi 自动连接模式：未连接时自动 / 始终自动
+export type WifiMode = "auto" | "always";
 
 /// 读取原始存储值；异常或不存在时返回空字符串
 export function readSetting(key: string): string {
@@ -71,6 +78,17 @@ export function readUserAgent(): string {
   return readSetting(USER_AGENT_KEY);
 }
 
+/// 自动连接 WiFi 的 SSID；留空返回默认值
+export function readWifiSsid(): string {
+  const v = readSetting(WIFI_SSID_KEY).trim();
+  return v || DEFAULT_WIFI_SSID;
+}
+
+/// 自动连接 WiFi 的密码；默认无密码（空字符串）
+export function readWifiPassword(): string {
+  return readSetting(WIFI_PASSWORD_KEY);
+}
+
 /// 网关兼容参数：与 Tauri `GatewayOptions` / 核心 `SrunLoginOptions` 字段一一对应，
 /// 登录 / 状态 / 注销三个 command 统一消费的唯一对象。
 export interface GatewayOptions {
@@ -110,6 +128,12 @@ export function applyTheme(theme: ThemeMode) {
 export function readStartupMode(): StartupMode {
   const v = readSetting(STARTUP_MODE_KEY);
   return v === "auto" || v === "manual" || v === "remember" ? v : "manual";
+}
+
+/// WiFi 自动连接模式：未连接时自动 / 始终自动（默认未连接时自动）
+export function readWifiMode(): WifiMode {
+  const v = readSetting(WIFI_MODE_KEY);
+  return v === "auto" || v === "always" ? v : "auto";
 }
 
 /// 静默启动：启动后隐藏主窗口，仅驻留系统托盘（默认开启，值为 "0" 时关闭）
