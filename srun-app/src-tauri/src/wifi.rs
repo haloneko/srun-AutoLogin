@@ -3,11 +3,41 @@
 //! 通过系统 `netsh wlan` 命令实现：查询当前连接、检查目标网络可用性、发起连接。
 //! 选择 netsh 而非 WLAN API：不引入额外依赖，连接已保存的配置文件也无需管理员权限。
 //!
+//! 本模块全部函数均为**阻塞调用**（spawn 进程 + `sleep` 轮询）：调用方必须放到阻塞线程池
+//! （见 `lib.rs` 中 `wifi_status` / `wifi_connect` 的 `spawn_blocking`），不得在主线程直接调用，
+//! 否则 netsh 执行期间窗口会假死。
+//!
 //! 兼容中英文系统输出：字段名（SSID / BSSID / Profile）在 netsh 输出中均为英文，
 //! 以这些 ASCII 关键字解析即可避免中文乱码问题（netsh 中文系统输出为 GBK 编码，
 //! 其余中文行在 lossy 转换下可能显示为 �，但不影响本模块依赖的关键字判断）。
 
 use std::process::Command;
+use std::sync::Mutex;
+
+/// 串行化 WiFi 连接操作。
+///
+/// 连接流程会写入 profile 并轮询确认，启动自动切换与用户手动点击可能同时触发；
+/// 并发执行会互相打断（一方刚连上又被另一方重连），导致误判超时失败。
+static CONNECT_LOCK: Mutex<()> = Mutex::new(());
+
+/// 构造 netsh 命令。
+///
+/// netsh 是控制台程序，从 GUI 进程直接 spawn 会闪现控制台窗口并抢占前台焦点
+/// （用户表现为「窗口点不动」），故 Windows 下统一以 `CREATE_NO_WINDOW` 启动。
+#[cfg(windows)]
+fn netsh_command() -> Command {
+    use std::os::windows::process::CommandExt;
+    /// 不为子进程创建控制台窗口
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let mut cmd = Command::new("netsh");
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd
+}
+
+#[cfg(not(windows))]
+fn netsh_command() -> Command {
+    Command::new("netsh")
+}
 
 /// 当前无线连接状态（序列化后返回前端）
 #[derive(Debug, Clone, Default, serde::Serialize)]
@@ -33,7 +63,7 @@ pub struct WifiConnectResult {
 
 /// 运行 netsh 并返回 stdout；失败返回 Err（命令不存在 / WLAN 服务未启动等）
 fn run_netsh(args: &[&str]) -> Result<String, String> {
-    let out = Command::new("netsh")
+    let out = netsh_command()
         .args(args)
         .output()
         .map_err(|e| format!("无法执行 netsh: {e}"))?;
@@ -178,6 +208,11 @@ pub fn connect(ssid: &str, password: &str) -> Result<WifiConnectResult, String> 
         return Err("SSID 不能为空".to_string());
     }
 
+    // 串行化：并发调用会让「连接 → 轮询确认」互相打断
+    let _guard = CONNECT_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+
     let st = current_status();
     if !st.interface_ready {
         return Err("未检测到可用的无线网卡，请检查 WLAN 服务或无线开关".to_string());
@@ -217,7 +252,7 @@ pub fn connect(ssid: &str, password: &str) -> Result<WifiConnectResult, String> 
     }
 
     // 发起连接；参数带引号以兼容 SSID 含空格的情况
-    let out = Command::new("netsh")
+    let out = netsh_command()
         .args([
             "wlan",
             "connect",
@@ -231,9 +266,9 @@ pub fn connect(ssid: &str, password: &str) -> Result<WifiConnectResult, String> 
         return Err(format!("连接命令执行失败: {}", stdout.trim()));
     }
 
-    // 轮询确认真正关联成功（最多 15 秒）
+    // 轮询确认真正关联成功（最多 15 秒）：先立即查一次（netsh connect 后通常已关联），
+    // 未成功再休眠重试，省掉无谓的首秒等待和最后一次空轮询
     for _ in 0..15 {
-        std::thread::sleep(std::time::Duration::from_secs(1));
         let st = current_status();
         if st.connected && st.ssid.as_deref() == Some(ssid) {
             return Ok(WifiConnectResult {
@@ -241,6 +276,7 @@ pub fn connect(ssid: &str, password: &str) -> Result<WifiConnectResult, String> 
                 message: format!("已连接到 {ssid}"),
             });
         }
+        std::thread::sleep(std::time::Duration::from_secs(1));
     }
     Err(format!(
         "连接「{ssid}」超时未成功，请检查密码是否正确或网络是否可用"
