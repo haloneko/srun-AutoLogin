@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import HeroButton from "./HeroButton";
@@ -6,6 +7,7 @@ import SettingsPanel from "./SettingsPanel";
 import { IconClose, IconGear, IconRefresh } from "./icons/Icons";
 import {
   applyTheme,
+  readAutostartVersion,
   readSilentStart,
   readStartupMode,
   readTheme,
@@ -13,6 +15,7 @@ import {
   readWifiPassword,
   readWifiSsid,
   toLoginOptions,
+  writeAutostartVersion,
   writeLastOnline,
 } from "./settings";
 
@@ -95,6 +98,10 @@ export default function App() {
   const toastId = useRef(0);
   /// 登录成功后延迟查询在线状态的定时器（网关数据同步有延迟）
   const loginCheckTimer = useRef<number | null>(null);
+  /// 「未连接时自动连接」模式下，因当前已连在别的网络上而主动跳过切换时，
+  /// 记下当时的网络名。此后在线状态查询必然因校园网网关不可达而失败，
+  /// 用它把原始报错换成一句能看懂的说明。
+  const wifiSkipped = useRef<string | null>(null);
 
   /// 登录成功后延迟 2s 查询在线状态，若网关尚未同步（仍离线）则每隔 2s 重查，最多 retries 次
   function schedulePostLoginCheck(retries = 3) {
@@ -132,6 +139,8 @@ export default function App() {
       });
       setInfo(s);
       setInfoError("");
+      // 查询成功说明校园网可达，之前记录的「主动跳过」不再适用
+      wifiSkipped.current = null;
       // 大按钮状态与在线状态同步：已在线 →「已连接」；离线 →「未登录」
       if (!preserveStatus) {
         setStatus((prev) =>
@@ -147,7 +156,14 @@ export default function App() {
       if (notify) showToast(s.online ? "状态已更新" : "状态已更新（离线）");
       return s;
     } catch (err) {
-      setInfoError(String(err));
+      // 若是「未连接时自动连接」模式下主动跳过了切换，网关不可达属于预期内：
+      // 替换掉原始报错，避免用户以为自己哪里配错了。
+      const skipped = wifiSkipped.current;
+      setInfoError(
+        skipped
+          ? `当前连接的是「${skipped}」，不是校园网，已按设置跳过自动切换；需要登录校园网时点击下方按钮即可。`
+          : String(err),
+      );
       if (notify) showToast(`刷新失败：${String(err)}`);
       return null;
     } finally {
@@ -155,12 +171,8 @@ export default function App() {
     }
   }
 
-  /// 确保连上目标校园网 WiFi。
-  ///
-  /// `force=true`（手动点击连接）时无条件切换，不看设置；
-  /// `force=false`（开机启动）时遵守设置：`always` 无条件连接，`auto` 仅当前 SSID 不同时连接。
-  /// 实际执行了连接时等待 DHCP 获取地址，避免紧接着的状态查询打到未就绪的网络；
-  /// 连接失败静默跳过，不阻塞后续登录检查。
+  /// 连上校园网 WiFi：手动点击（`force`）无条件切换；开机启动按设置——`always` 不在目标
+  /// 就切，`auto` 仅在完全没连 WiFi 时才切（别合并成同一个条件，否则 `auto` 会强切热点）。
   async function ensureWifi(force = false): Promise<void> {
     const wifiSsid = readWifiSsid();
     if (!wifiSsid) return;
@@ -169,12 +181,21 @@ export default function App() {
         connected: boolean;
         ssid: string | null;
       }>("wifi_status");
-      const need =
-        force ||
-        readWifiMode() === "always" ||
-        !cur.connected ||
-        (cur.ssid ?? "") !== wifiSsid;
-      if (!need) return;
+      const onTarget = cur.connected && (cur.ssid ?? "") === wifiSsid;
+      const mode = readWifiMode();
+      const need = force || (mode === "always" ? !onTarget : !cur.connected);
+      // 只有「未连接时自动连接」+ 已连在别的网络上，才算按设置主动跳过切换
+      const skipped =
+        !force && mode === "auto" && cur.connected && !onTarget
+          ? (cur.ssid ?? "")
+          : null;
+      wifiSkipped.current = skipped;
+      if (!need) {
+        if (skipped) {
+          showToast(`当前为「${skipped}」，已按设置跳过连接 ${wifiSsid}`);
+        }
+        return;
+      }
       showToast(`正在连接 ${wifiSsid}…`);
       const res = await invoke<{ connected: boolean; message: string }>(
         "wifi_connect",
@@ -191,11 +212,36 @@ export default function App() {
   // 应用打开时查询当前在线状态，并按启动模式决定是否自动登录
   useEffect(() => {
     applyTheme(readTheme());
-    // 窗口默认隐藏（tauri.conf.json visible:false）：静默启动开启则保持托盘驻留，
-    // 开发模式或关闭静默启动时显示主窗口
-    if (import.meta.env.DEV || !readSilentStart()) {
-      void getCurrentWindow().show();
-    }
+    (async () => {
+      // 窗口默认隐藏（tauri.conf.json visible:false）。
+      // 手动启动的显示已由后端 setup 直接保证（不依赖前端）；
+      // 此处仅处理「开机自启动（--silent）但未开启静默启动」这一种需补显示的情况。
+      try {
+        const autoLaunch = await invoke<boolean>("is_autostart_launch");
+        if (autoLaunch && !readSilentStart()) {
+          void getCurrentWindow().show();
+        }
+      } catch {
+        // 查询失败时保持现状：手动启动已由后端显示，自启动保持托盘驻留
+      }
+    })();
+    (async () => {
+      // 自启动兼容：老版本写入的 Run 项可能没带 --silent，升级后自启动会弹出主窗口。
+      // 当前版本与上次记录的版本不一致才处理——开了自启动就复用插件重写一遍（自动带上参数），
+      // 没开则只记版本；用户之后开启时插件写入的本来就是带参数的正确条目。
+      // 任一环节失败都不影响主流程，等下次启动再补。
+      try {
+        const current = await getVersion();
+        if (readAutostartVersion() !== current) {
+          if (await invoke<boolean>("autostart_enabled")) {
+            await invoke("autostart_set", { enable: true });
+          }
+          writeAutostartVersion(current);
+        }
+      } catch {
+        /* 忽略 */
+      }
+    })();
     (async () => {
       const mode = readStartupMode();
       const hasCred =

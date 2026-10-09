@@ -163,30 +163,74 @@ async fn srun_logout(options: GatewayOptions) -> Result<Value, String> {
 ///
 /// 无网卡 / WLAN 服务未启动 / 接口禁用时返回 `interface_ready=false`，
 /// 由前端据此决定是否跳过自动连接。
+///
+/// `netsh` 是阻塞调用，必须 async + `spawn_blocking`：非 async 的 command 在主线程执行，
+/// netsh 期间窗口会整体假死（启动后几秒「点不动、拖不动」）。
 #[tauri::command]
-fn wifi_status() -> wifi::WifiStatus {
-    wifi::current_status()
+async fn wifi_status() -> Result<wifi::WifiStatus, String> {
+    tauri::async_runtime::spawn_blocking(wifi::current_status)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// 连接指定 WiFi command：前端 `invoke("wifi_connect", { ssid, password })` 调用。
 ///
 /// `password` 可缺省（开放网络或已保存过密码的网络）。返回 [`wifi::WifiConnectResult`]，
 /// 其中 `connected=true` 表示本次实际执行了连接，前端可据此等待 DHCP 就绪后再查状态。
+///
+/// 同 [`wifi_status`]：连接含多次 netsh 调用与最多 15 秒轮询，必须放到阻塞线程池执行，
+/// 否则会长时间占住主线程导致窗口假死。
 #[tauri::command]
-fn wifi_connect(ssid: String, password: Option<String>) -> Result<wifi::WifiConnectResult, String> {
-    wifi::connect(&ssid, password.as_deref().unwrap_or(""))
+async fn wifi_connect(
+    ssid: String,
+    password: Option<String>,
+) -> Result<wifi::WifiConnectResult, String> {
+    let password = password.unwrap_or_default();
+    tauri::async_runtime::spawn_blocking(move || wifi::connect(&ssid, &password))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// 开机自启动拉起时附加的命令行参数，用于区分「自启动」与「用户手动启动」。
+/// 自启动隐藏、手动启动显示主窗口，依赖该标记判断。
+const AUTOSTART_FLAG: &str = "--silent";
+
+/// 判断当前进程是否为开机自启动拉起（命令行含 `--silent` 标记）。
+/// 自启动附加该参数见 `run()` 中 autostart 插件初始化。
+fn is_autostart_launch_impl() -> bool {
+    std::env::args().any(|a| a == AUTOSTART_FLAG)
+}
+
+/// 前端查询接口：是否为自启动拉起（供前端补充显示逻辑使用）。
+#[tauri::command]
+fn is_autostart_launch() -> bool {
+    is_autostart_launch_impl()
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            // 第二次启动：不新建实例，唤出已有窗口
-            show_main_window(app);
+        .plugin(tauri_plugin_autostart::init(
+            MacosLauncher::LaunchAgent,
+            // 自启动时附加 --silent：应用据此隐藏主窗口，仅驻留托盘
+            Some(vec![AUTOSTART_FLAG]),
+        ))
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // 第二次启动：不新建实例。
+            // 手动启动（无 --silent）唤出已有窗口；自启动重复拉起则保持后台驻留。
+            if !args.iter().any(|a| a == AUTOSTART_FLAG) {
+                show_main_window(app);
+            }
         }))
         .setup(|app| {
             setup_tray(app)?;
+            // 窗口默认隐藏（tauri.conf.json visible:false）。
+            // 手动启动（命令行无 --silent）时由后端直接显示主窗口，不经过前端 JS：
+            // 避免 WebView 未就绪或前端脚本报错导致窗口永不出现。
+            // 开机自启动（带 --silent）则不在此显示，交由前端按「静默启动」设置决定。
+            if !is_autostart_launch_impl() {
+                show_main_window(app.handle());
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -202,6 +246,7 @@ pub fn run() {
             srun_logout,
             autostart_enabled,
             autostart_set,
+            is_autostart_launch,
             wifi_status,
             wifi_connect
         ])

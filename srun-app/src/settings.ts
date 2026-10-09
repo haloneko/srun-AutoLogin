@@ -17,6 +17,8 @@ export const WIFI_MODE_KEY = "srun.wifiMode";
 export const WIFI_SSID_KEY = "srun.wifiSsid";
 export const WIFI_PASSWORD_KEY = "srun.wifiPassword";
 export const LAST_ONLINE_KEY = "srun.lastOnline";
+/// 上次写入自启动项时的应用版本号：版本不一致时由启动流程补写 --silent 参数
+export const AUTOSTART_VERSION_KEY = "srun.autostartVersion";
 
 export const DEFAULT_BASE_URL = "https://wlrz.sdmu.edu.cn/";
 export const DEFAULT_AC_ID = "1";
@@ -148,4 +150,14 @@ export function writeLastOnline(online: boolean) {
   } catch {
     /* 忽略 */
   }
+}
+
+/// 上次写入自启动项时的应用版本号；无记录返回空串（视为需要处理）
+export function readAutostartVersion(): string {
+  return readSetting(AUTOSTART_VERSION_KEY);
+}
+
+/// 记录当前版本号（失败静默，下次启动会重试补写）
+export function writeAutostartVersion(version: string) {
+  writeSetting(AUTOSTART_VERSION_KEY, version);
 }
