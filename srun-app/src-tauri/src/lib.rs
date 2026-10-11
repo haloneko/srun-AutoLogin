@@ -8,6 +8,7 @@ use srun_core::http::SrunHttp;
 use srun_core::login::SrunLoginOptions;
 use srun_core::status::OnlineStatus;
 mod wifi;
+mod wifi_watcher;
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -224,6 +225,8 @@ pub fn run() {
         }))
         .setup(|app| {
             setup_tray(app)?;
+            // 监听 WiFi 连接状态变动（WLAN API 通知），变动时向前端发 wifi-changed 事件
+            wifi_watcher::start(app);
             // 窗口默认隐藏（tauri.conf.json visible:false）。
             // 手动启动（命令行无 --silent）时由后端直接显示主窗口，不经过前端 JS：
             // 避免 WebView 未就绪或前端脚本报错导致窗口永不出现。

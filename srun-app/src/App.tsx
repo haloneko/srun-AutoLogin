@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import HeroButton from "./HeroButton";
 import SettingsPanel from "./SettingsPanel";
@@ -36,6 +37,13 @@ interface OnlineStatus {
   online_seconds: number;
   total_bytes: number;
   online_devices: number;
+}
+
+/// 后端 wifi::WifiStatus 的镜像，随 wifi-changed 事件推送
+interface WifiStatus {
+  connected: boolean;
+  ssid: string | null;
+  interfaceReady: boolean;
 }
 
 type Status =
@@ -102,6 +110,8 @@ export default function App() {
   /// 记下当时的网络名。此后在线状态查询必然因校园网网关不可达而失败，
   /// 用它把原始报错换成一句能看懂的说明。
   const wifiSkipped = useRef<string | null>(null);
+  /// 最近一次 wifi-changed 事件推送的连接状态（仅监听存储，行为逻辑后续接入）
+  const wifiStatus = useRef<WifiStatus | null>(null);
 
   /// 登录成功后延迟 2s 查询在线状态，若网关尚未同步（仍离线）则每隔 2s 重查，最多 retries 次
   function schedulePostLoginCheck(retries = 3) {
@@ -208,6 +218,17 @@ export default function App() {
       // WiFi 连接失败不影响后续状态检查与自动登录
     }
   }
+
+  // 订阅后端 WLAN 通知：WiFi 连接状态变动时更新本地状态（仅监听，行为逻辑后续接入）
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listen<WifiStatus>("wifi-changed", (event) => {
+      wifiStatus.current = event.payload;
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, []);
 
   // 应用打开时查询当前在线状态，并按启动模式决定是否自动登录
   useEffect(() => {
