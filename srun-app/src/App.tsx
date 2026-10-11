@@ -61,6 +61,11 @@ const CRED_PASSWORD_KEY = "srun.password";
 /// 条形通知停留时长（ms），与进度条动画时长一致
 const TOAST_DURATION = 3000;
 
+/// 连上校园网后延迟自动探测的时长（WLAN 事件在关联完成后立即触发，此时 DHCP 可能尚未就绪）
+const AUTO_PROBE_DELAY = 3000;
+/// 首次自动探测失败（网络栈未就绪）后的重试间隔
+const AUTO_PROBE_RETRY_DELAY = 5000;
+
 interface ToastItem {
   id: number;
   msg: string;
@@ -110,8 +115,15 @@ export default function App() {
   /// 记下当时的网络名。此后在线状态查询必然因校园网网关不可达而失败，
   /// 用它把原始报错换成一句能看懂的说明。
   const wifiSkipped = useRef<string | null>(null);
-  /// 最近一次 wifi-changed 事件推送的连接状态（仅监听存储，行为逻辑后续接入）
+  /// 最近一次 wifi-changed 事件推送的连接状态
   const wifiStatus = useRef<WifiStatus | null>(null);
+  /// status 的 ref 镜像：wifi-changed 回调里需读取最新按钮状态做并发判断
+  const statusRef = useRef(status);
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+  /// 连上校园网后延迟自动探测的定时器（连接过程事件连续到达，需防抖）
+  const autoProbeTimer = useRef<number | null>(null);
 
   /// 登录成功后延迟 2s 查询在线状态，若网关尚未同步（仍离线）则每隔 2s 重查，最多 retries 次
   function schedulePostLoginCheck(retries = 3) {
@@ -219,15 +231,60 @@ export default function App() {
     }
   }
 
-  // 订阅后端 WLAN 通知：WiFi 连接状态变动时更新本地状态（仅监听，行为逻辑后续接入）
+  /// 已连上校园网时的自动探测：查一次在线状态，未认证（离线）且已配置凭据则自动登录。
+  /// 由 wifi-changed 事件经防抖触发；网络栈未就绪（探测报错）时延迟重试一次。
+  async function autoProbeAndLogin(attempt = 0) {
+    const kind = statusRef.current.kind;
+    // 正在登录 / 注销、或已确认在线：无需动作（登录成功后的延迟重查已在跑）
+    if (kind === "loading" || kind === "loggingOut" || kind === "success") return;
+    // 连上校园网后不再有「主动跳过切换」的说法，清掉可能残留的跳过标记
+    wifiSkipped.current = null;
+    const s = await refreshStatus(false, true);
+    if (s) {
+      if (!s.online) {
+        const hasCred =
+          readCredential(CRED_USERNAME_KEY).trim() &&
+          readCredential(CRED_PASSWORD_KEY);
+        if (hasCred) {
+          await handleLogin();
+        }
+      }
+    } else if (attempt < 1) {
+      // 网络栈尚未就绪（探测报错）：稍后再试一次
+      autoProbeTimer.current = window.setTimeout(() => {
+        autoProbeTimer.current = null;
+        void autoProbeAndLogin(1);
+      }, AUTO_PROBE_RETRY_DELAY);
+    }
+  }
+
+  // 订阅后端 WLAN 通知：连上校园网（connected 且 ssid 与设置一致）→ 防抖后自动探测并登录；
+  // 离开校园网 / 断开 → 取消挂起的探测
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     listen<WifiStatus>("wifi-changed", (event) => {
-      wifiStatus.current = event.payload;
+      const p = event.payload;
+      wifiStatus.current = p;
+      const wifiSsid = readWifiSsid();
+      if (!wifiSsid) return;
+      if (p.connected && p.ssid === wifiSsid) {
+        // 连接过程事件连续到达，重置防抖，以最后一个事件为准
+        if (autoProbeTimer.current) {
+          window.clearTimeout(autoProbeTimer.current);
+        }
+        autoProbeTimer.current = window.setTimeout(() => {
+          autoProbeTimer.current = null;
+          void autoProbeAndLogin();
+        }, AUTO_PROBE_DELAY);
+      } else if (autoProbeTimer.current) {
+        window.clearTimeout(autoProbeTimer.current);
+        autoProbeTimer.current = null;
+      }
     }).then((fn) => {
       unlisten = fn;
     });
     return () => unlisten?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 应用打开时查询当前在线状态，并按启动模式决定是否自动登录
