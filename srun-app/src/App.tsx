@@ -274,6 +274,11 @@ export default function App() {
       window.clearTimeout(autoProbeTimer.current);
       autoProbeTimer.current = null;
     }
+    // 登录成功后的延迟重查一并作废：否则它会在网络已变更后把状态球改回「已连接」
+    if (loginCheckTimer.current) {
+      window.clearTimeout(loginCheckTimer.current);
+      loginCheckTimer.current = null;
+    }
 
     if (wifiSsid && curSsid === wifiSsid) {
       // 已连校园网：提示一次，防抖后自动探测并登录
@@ -301,8 +306,14 @@ export default function App() {
       return;
     }
 
-    // 未连接
-    if (transitioned) showToast("WiFi 已断开");
+    // 未连接：复位「已连接」显示与状态球，避免残留上次登录状态
+    if (transitioned) {
+      setInfo(null);
+      setInfoError("");
+      setStatus({ kind: "idle" });
+      wifiSkipped.current = null;
+      showToast("WiFi 已断开");
+    }
   }
 
   // 订阅后端 WLAN 通知：事件仅作「网络有变动」的触发器，到达后主动查询一次
@@ -594,7 +605,7 @@ export default function App() {
           {wifi && wifiOnOther && (
             <div className="wifi-hint">
               <span className="wifi-hint__msg">
-                当前连接的是「{wifi.ssid}」，不是校园网「{targetSsid}」，无法自动登录
+                当前连接的是「{wifi.ssid}」，不是校园网「{targetSsid}」，单击上方按钮切换
               </span>
             </div>
           )}
