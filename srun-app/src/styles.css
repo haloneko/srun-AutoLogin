@@ -12,6 +12,7 @@
   --border: #e2e8f0;
   --success: #16a34a;
   --danger: #dc2626;
+  --warn: #d97706;
 }
 
 /* 强制深色（data-theme="dark"） */
@@ -261,6 +262,46 @@ body {
 
 .status-item__value--off {
   color: var(--muted);
+}
+
+.status-item__value--warn {
+  color: var(--warn);
+}
+
+/* ===== 连接其他网络的切换提示条 ===== */
+.wifi-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 2px 10px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  border-radius: 10px;
+}
+
+.wifi-hint__msg {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-1);
+}
+
+.wifi-hint__btn {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.wifi-hint__btn:hover {
+  background: var(--accent-dark);
 }
 
 .status-card__error {
