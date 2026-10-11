@@ -8,55 +8,29 @@ import SettingsPanel from "./SettingsPanel";
 import { IconClose, IconGear, IconRefresh } from "./icons/Icons";
 import {
   applyTheme,
+  LAST_ONLINE_KEY,
+  PASSWORD_KEY,
   readAutostartVersion,
   readSilentStart,
   readStartupMode,
+  readSetting,
   readTheme,
   readWifiMode,
   readWifiPassword,
   readWifiSsid,
   toLoginOptions,
+  USERNAME_KEY,
   writeAutostartVersion,
   writeLastOnline,
 } from "./settings";
-
-/// srun_portal 登录响应中的关键字段
-interface LoginResult {
-  error: string;
-  client_ip?: string;
-  online_ip?: string;
-  suc_msg?: string;
-  error_msg?: string;
-}
-
-/// srun-core status::OnlineStatus 的镜像
-interface OnlineStatus {
-  online: boolean;
-  username: string;
-  ip: string;
-  online_seconds: number;
-  total_bytes: number;
-  online_devices: number;
-}
-
-/// 后端 wifi::WifiStatus 的镜像，随 wifi-changed 事件推送
-interface WifiStatus {
-  connected: boolean;
-  ssid: string | null;
-  interfaceReady: boolean;
-}
-
-type Status =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "loggingOut" }
-  | { kind: "success"; ip: string; msg: string }
-  | { kind: "fail"; error: string; msg: string }
-  | { kind: "error"; msg: string };
-
-/// 凭据暂存于 localStorage，将来由设置页写入（与这里约定的 key 保持一致即可）
-const CRED_USERNAME_KEY = "srun.username";
-const CRED_PASSWORD_KEY = "srun.password";
+import { formatBytes, formatDuration, readCredential } from "./utils";
+import type {
+  LoginResult,
+  OnlineStatus,
+  Status,
+  ToastItem,
+  WifiStatus,
+} from "./types";
 
 /// 条形通知停留时长（ms），与进度条动画时长一致
 const TOAST_DURATION = 3000;
@@ -65,41 +39,6 @@ const TOAST_DURATION = 3000;
 const AUTO_PROBE_DELAY = 3000;
 /// 首次自动探测失败（网络栈未就绪）后的重试间隔
 const AUTO_PROBE_RETRY_DELAY = 5000;
-
-interface ToastItem {
-  id: number;
-  msg: string;
-}
-
-function readCredential(key: string): string {
-  try {
-    return localStorage.getItem(key) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-/// 秒 → "x天 x小时" / "x小时 x分" / "x分 x秒"
-function formatDuration(secs: number): string {
-  if (!secs) return "—";
-  const d = Math.floor(secs / 86400);
-  const h = Math.floor((secs % 86400) / 3600);
-  const m = Math.floor((secs % 3600) / 60);
-  const s = secs % 60;
-  if (d > 0) return `${d}天 ${h}小时`;
-  if (h > 0) return `${h}小时 ${m}分`;
-  if (m > 0) return `${m}分 ${s}秒`;
-  return `${s}秒`;
-}
-
-/// 字节 → B / KB / MB / GB（与官网一致，按 1000 进制换算）
-function formatBytes(bytes: number): string {
-  if (!bytes) return "0 B";
-  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(2)} GB`;
-  if (bytes >= 1e6) return `${(bytes / 1e6).toFixed(2)} MB`;
-  if (bytes >= 1e3) return `${(bytes / 1e3).toFixed(2)} KB`;
-  return `${bytes} B`;
-}
 
 export default function App() {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -245,8 +184,7 @@ export default function App() {
     if (s) {
       if (!s.online) {
         const hasCred =
-          readCredential(CRED_USERNAME_KEY).trim() &&
-          readCredential(CRED_PASSWORD_KEY);
+          readCredential(USERNAME_KEY).trim() && readCredential(PASSWORD_KEY);
         if (hasCred) {
           await handleLogin();
         }
@@ -375,9 +313,9 @@ export default function App() {
     (async () => {
       const mode = readStartupMode();
       const hasCred =
-        readCredential(CRED_USERNAME_KEY).trim() && readCredential(CRED_PASSWORD_KEY);
+        readCredential(USERNAME_KEY).trim() && readCredential(PASSWORD_KEY);
       // 「记录过去状态」：以上次记录的在线状态为准（先于本次刷新读取）
-      const lastOnline = localStorage.getItem("srun.lastOnline") === "1";
+      const lastOnline = readSetting(LAST_ONLINE_KEY) === "1";
       // 初始化 wifi 状态：WLAN 事件只推送变动，启动时主动查一次，
       // 已连接则经统一入口弹「已连接」提示（启动时无需调度自动探测，登录流程随后进行）
       try {
@@ -445,8 +383,8 @@ export default function App() {
     if (wifiFirst) {
       await ensureWifi(true);
     }
-    const username = readCredential(CRED_USERNAME_KEY).trim();
-    const password = readCredential(CRED_PASSWORD_KEY);
+    const username = readCredential(USERNAME_KEY).trim();
+    const password = readCredential(PASSWORD_KEY);
     if (!username || !password) {
       setStatus({ kind: "error", msg: "尚未配置账号，请先到设置页填写" });
       return;
