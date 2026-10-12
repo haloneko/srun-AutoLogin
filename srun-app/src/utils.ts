@@ -28,3 +28,24 @@ export function readCredential(key: string): string {
     return "";
   }
 }
+
+/// 取消定时器：安全清空 ref
+export function clearTimer(ref: { current: number | null }) {
+  if (ref.current !== null) {
+    window.clearTimeout(ref.current);
+    ref.current = null;
+  }
+}
+
+/// 挂起定时器：先取消旧的同名定时器，触发后自动清空 ref
+export function scheduleTimer(
+  ref: { current: number | null },
+  fn: () => void,
+  delay: number,
+) {
+  clearTimer(ref);
+  ref.current = window.setTimeout(() => {
+    ref.current = null;
+    fn();
+  }, delay);
+}

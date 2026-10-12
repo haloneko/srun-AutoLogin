@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -23,14 +23,20 @@ import {
   writeAutostartVersion,
   writeLastOnline,
 } from "./settings";
-import { formatBytes, formatDuration, readCredential } from "./utils";
+import {
+  clearTimer,
+  formatBytes,
+  formatDuration,
+  readCredential,
+  scheduleTimer,
+} from "./utils";
 import type {
   LoginResult,
   OnlineStatus,
-  Status,
   ToastItem,
   WifiStatus,
 } from "./types";
+import { statusReducer } from "./status";
 
 /// 条形通知停留时长（ms），与进度条动画时长一致
 const TOAST_DURATION = 3000;
@@ -41,7 +47,7 @@ const AUTO_PROBE_DELAY = 3000;
 const AUTO_PROBE_RETRY_DELAY = 5000;
 
 export default function App() {
-  const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [status, dispatch] = useReducer(statusReducer, { kind: "idle" });
   const [info, setInfo] = useState<OnlineStatus | null>(null);
   const [infoError, setInfoError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -68,15 +74,13 @@ export default function App() {
 
   /// 登录成功后延迟 2s 查询在线状态，若网关尚未同步（仍离线）则每隔 2s 重查，最多 retries 次
   function schedulePostLoginCheck(retries = 3) {
-    if (loginCheckTimer.current) {
-      window.clearTimeout(loginCheckTimer.current);
-    }
-    loginCheckTimer.current = window.setTimeout(async () => {
-      loginCheckTimer.current = null;
-      const s = await refreshStatus(false, true);
-      if (s && !s.online && retries > 0) {
-        schedulePostLoginCheck(retries - 1);
-      }
+    scheduleTimer(loginCheckTimer, () => {
+      void (async () => {
+        const s = await refreshStatus(false, true);
+        if (s && !s.online && retries > 0) {
+          schedulePostLoginCheck(retries - 1);
+        }
+      })();
     }, 2000);
   }
 
@@ -107,13 +111,11 @@ export default function App() {
       wifiSkipped.current = null;
       // 大按钮状态与在线状态同步：已在线 →「已连接」；离线 →「未登录」
       // preserveStatus 仅保护「离线」结果（登录刚成功网关未同步时不被覆盖），已在线始终更新
-      setStatus((prev) =>
-        s.online
-          ? { kind: "success", ip: s.ip, msg: "已在线" }
-          : preserveStatus || prev.kind === "loading"
-            ? prev
-            : { kind: "idle" }
-      );
+      if (s.online) {
+        dispatch({ type: "set", status: { kind: "success", ip: s.ip, msg: "已在线" } });
+      } else if (!preserveStatus && statusRef.current.kind !== "loading") {
+        dispatch({ type: "idle" });
+      }
       // 记录最近一次在线状态，供「记录过去状态」启动模式使用
       writeLastOnline(s.online);
       if (notify) showToast(s.online ? "状态已更新" : "状态已更新（离线）");
@@ -191,8 +193,7 @@ export default function App() {
       }
     } else if (attempt < 1) {
       // 网络栈尚未就绪（探测报错）：稍后再试一次
-      autoProbeTimer.current = window.setTimeout(() => {
-        autoProbeTimer.current = null;
+      scheduleTimer(autoProbeTimer, () => {
         void autoProbeAndLogin(1);
       }, AUTO_PROBE_RETRY_DELAY);
     }
@@ -208,21 +209,14 @@ export default function App() {
     const transitioned = prevSsid !== curSsid;
 
     // 非校园网状态（断开/连上其他）先取消挂起的自动探测
-    if (autoProbeTimer.current) {
-      window.clearTimeout(autoProbeTimer.current);
-      autoProbeTimer.current = null;
-    }
+    clearTimer(autoProbeTimer);
     // 登录成功后的延迟重查一并作废：否则它会在网络已变更后把状态球改回「已连接」
-    if (loginCheckTimer.current) {
-      window.clearTimeout(loginCheckTimer.current);
-      loginCheckTimer.current = null;
-    }
+    clearTimer(loginCheckTimer);
 
     if (wifiSsid && curSsid === wifiSsid) {
       // 已连校园网：提示一次，防抖后自动探测并登录
       if (transitioned) showToast(`已连接到校园网「${curSsid}」`);
-      autoProbeTimer.current = window.setTimeout(() => {
-        autoProbeTimer.current = null;
+      scheduleTimer(autoProbeTimer, () => {
         void autoProbeAndLogin();
       }, AUTO_PROBE_DELAY);
       return;
@@ -233,7 +227,7 @@ export default function App() {
       if (transitioned) {
         setInfo(null);
         setInfoError("");
-        setStatus({ kind: "idle" });
+        dispatch({ type: "idle" });
         wifiSkipped.current = null;
         showToast(
           wifiSsid
@@ -248,7 +242,7 @@ export default function App() {
     if (transitioned) {
       setInfo(null);
       setInfoError("");
-      setStatus({ kind: "idle" });
+      dispatch({ type: "idle" });
       wifiSkipped.current = null;
       showToast("WiFi 已断开");
     }
@@ -343,11 +337,8 @@ export default function App() {
   async function handleLogout() {
     if (status.kind === "loggingOut") return;
     // 取消登录成功后挂起的延迟重查，避免其把状态卡片改回「在线」
-    if (loginCheckTimer.current) {
-      window.clearTimeout(loginCheckTimer.current);
-      loginCheckTimer.current = null;
-    }
-    setStatus({ kind: "loggingOut" });
+    clearTimer(loginCheckTimer);
+    dispatch({ type: "set", status: { kind: "loggingOut" } });
     try {
       const res = (await invoke("srun_logout", {
         options: toLoginOptions(),
@@ -360,10 +351,13 @@ export default function App() {
         await new Promise((r) => setTimeout(r, 500));
         await refreshStatus();
       } else {
-        setStatus({ kind: "error", msg: res.error_msg || res.error || "注销失败" });
+        dispatch({
+          type: "set",
+          status: { kind: "error", msg: res.error_msg || res.error || "注销失败" },
+        });
       }
     } catch (err) {
-      setStatus({ kind: "error", msg: String(err) });
+      dispatch({ type: "set", status: { kind: "error", msg: String(err) } });
     }
   }
 
@@ -386,10 +380,10 @@ export default function App() {
     const username = readCredential(USERNAME_KEY).trim();
     const password = readCredential(PASSWORD_KEY);
     if (!username || !password) {
-      setStatus({ kind: "error", msg: "尚未配置账号，请先到设置页填写" });
+      dispatch({ type: "set", status: { kind: "error", msg: "尚未配置账号，请先到设置页填写" } });
       return;
     }
-    setStatus({ kind: "loading" });
+    dispatch({ type: "set", status: { kind: "loading" } });
     try {
       const res = (await invoke("srun_login", {
         username,
@@ -398,23 +392,25 @@ export default function App() {
       })) as LoginResult;
       if (res.error === "ok") {
         const ip = res.client_ip || res.online_ip || "";
-        setStatus({
-          kind: "success",
-          ip,
-          msg: res.suc_msg || "登录成功",
+        dispatch({
+          type: "set",
+          status: { kind: "success", ip, msg: res.suc_msg || "登录成功" },
         });
         showToast("登录成功");
         // 网关数据同步有延迟：延迟 2s 再查询状态栏，离线则自动重查，避免状态卡片停在「离线」
         schedulePostLoginCheck();
       } else {
-        setStatus({
-          kind: "fail",
-          error: res.error,
-          msg: res.error_msg || res.error,
+        dispatch({
+          type: "set",
+          status: {
+            kind: "fail",
+            error: res.error,
+            msg: res.error_msg || res.error,
+          },
         });
       }
     } catch (err) {
-      setStatus({ kind: "error", msg: String(err) });
+      dispatch({ type: "set", status: { kind: "error", msg: String(err) } });
     }
   }
 
