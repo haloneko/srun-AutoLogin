@@ -10,11 +10,12 @@
 
 ## 功能介绍
 
-- **图形化界面**：可视化登录/状态/设置，支持自定义认证服务器地址
-- **一键自动登录**：登录 / 注销深澜账号，断网自动重连、失败重试
-- **WiFi 自动连接**：配置校园网 SSID 与密码后，开机按设置自动连接（自动 / 始终两种模式）；手动点击「连接」按钮会先切到校园网 WiFi 再登录
-- **状态展示**：在线状态、IP 地址、上线时长、已用流量、在线设备数
-- **设置**：账号密码、认证服务器、开机自启动、启动行为（自动 / 手动 / 记录上次状态）
+- **图形化界面**：登录 / 状态 / 设置一体化，支持主题切换（跟随系统 / 浅色 / 深色）
+- **一键登录 / 注销**：主按钮随在线状态自动切换操作；登录失败自动重试，断网后自动恢复
+- **自动探测登录**：连上校园网后自动检测是否已认证，未认证且保存过凭据时自动登录，无需手动操作
+- **WiFi 自动连接**：配置校园网 SSID 与密码后自动连接（「未连接时自动 / 始终自动」两种模式）；当前连的是其他 WiFi 时给出提示，一键切换回校园网
+- **状态展示**：在线状态、账户、IP 地址、上线时长、已用流量、在线设备数，支持手动刷新
+- **设置**：账号密码、认证服务器地址、启动行为（自动 / 手动 / 记录上次状态）、开机自启动、静默启动、WiFi 连接、主题；高级选项可自定义网关兼容参数（认证组 `ac_id`、加密版本、字母表、User-Agent）
 - **系统托盘**：点 × 隐藏后台运行，托盘图标切换窗口 / 退出
 - **启动显示规则**：手动启动总是显示主界面；仅开机自启动时按「静默启动」设置决定驻留托盘还是显示窗口
 - **单例运行**：重复启动只唤起已有窗口，不重复开进程
@@ -36,6 +37,11 @@ srun/
 ├── srun-cli/               # 命令行工具
 ├── srun-app/               # 桌面应用（React 前端 + Tauri 壳）
 │   ├── src/                # React 前端
+│   │   ├── app/            # 应用壳（App.tsx、全局样式）
+│   │   ├── components/     # UI 组件（HeroButton / SettingsPanel / icons）
+│   │   ├── hooks/          # 业务 Hook（useNetwork / useSession / useWifi / useToasts）
+│   │   ├── domain/         # 纯领域逻辑（settings / status）
+│   │   └── common/         # 公共类型与工具（types / utils）
 │   └── src-tauri/          # Tauri 后端（Rust）
 ├── scripts/                # 打包脚本（package / build-cli / build-app / build-installer）
 └── README.md
@@ -67,7 +73,7 @@ cargo run -p srun-cli -- --help
 |---|---|---|
 | `package.bat` | 一键打包全部（调用下面 3 个） | CLI + App + 安装包 |
 | `build-cli.bat` | 只打包 CLI | `dist\srun-cli.exe` |
-| `build-app.bat` | 只打包桌面 App（免安装 exe） | `srun-app\src-tauri\target\release\srun.exe` |
+| `build-app.bat` | 只打包桌面 App（免安装 exe） | `srun-app\src-tauri\target\release\srun-app.exe` |
 | `build-installer.bat` | 只打包安装包 | `bundle\nsis\*.exe`、`bundle\msi\*.msi` |
 
 ### 一键打包
@@ -93,7 +99,7 @@ scripts\build-installer.bat    # 只打安装包
 | 产物 | 路径 |
 |---|---|
 | CLI 可执行文件 | `dist\srun-cli.exe` |
-| 桌面 App（免安装 exe） | `srun-app\src-tauri\target\release\bundle\srun.exe` |
+| 桌面 App（免安装 exe） | `srun-app\src-tauri\target\release\bundle\srun-app.exe` |
 | 安装包 NSIS | `srun-app\src-tauri\target\release\bundle\nsis\*.exe` |
 | 安装包 MSI | `srun-app\src-tauri\target\release\bundle\msi\*.msi` |
 
