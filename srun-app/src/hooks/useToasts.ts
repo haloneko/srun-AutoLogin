@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { ToastItem } from "./types";
+import type { ToastItem } from "@/common/types";
 
 /// 条形通知停留时长（ms），与进度条动画时长一致
 const TOAST_DURATION = 3000;

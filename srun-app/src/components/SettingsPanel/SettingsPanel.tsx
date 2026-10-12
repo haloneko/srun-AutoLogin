@@ -30,8 +30,8 @@ import {
   WIFI_SSID_KEY,
   WifiMode,
   writeSetting,
-} from "./settings";
-import { IconCheck, IconClose, IconEye, IconEyeOff } from "./icons/Icons";
+} from "@/domain/settings";
+import { IconCheck, IconClose, IconEye, IconEyeOff } from "@/components/icons/Icons";
 import "./SettingsPanel.css";
 
 const THEME_OPTIONS: { value: ThemeMode; label: string; desc: string }[] = [

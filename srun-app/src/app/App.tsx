@@ -2,19 +2,19 @@ import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import HeroButton from "./HeroButton";
-import SettingsPanel from "./SettingsPanel";
-import { IconClose, IconGear, IconRefresh } from "./icons/Icons";
-import { useNetwork } from "./useNetwork";
-import { useToasts } from "./useToasts";
+import HeroButton from "@/components/HeroButton/HeroButton";
+import SettingsPanel from "@/components/SettingsPanel/SettingsPanel";
+import { IconClose, IconGear, IconRefresh } from "@/components/icons/Icons";
+import { useNetwork } from "@/hooks/useNetwork";
+import { useToasts } from "@/hooks/useToasts";
 import {
   applyTheme,
   readAutostartVersion,
   readSilentStart,
   readTheme,
   writeAutostartVersion,
-} from "./settings";
-import { formatBytes, formatDuration } from "./utils";
+} from "@/domain/settings";
+import { formatBytes, formatDuration } from "@/common/utils";
 
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);

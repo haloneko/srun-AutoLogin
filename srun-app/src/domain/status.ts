@@ -1,4 +1,4 @@
-import type { Status } from "./types";
+import type { Status } from "@/common/types";
 
 /// 状态球合法迁移表（仅开发期告警，不阻断运行）。
 /// 覆盖现实路径：用户操作（登录/注销/重试）与外部事实（查询已在线/离线、网络变更复位）。

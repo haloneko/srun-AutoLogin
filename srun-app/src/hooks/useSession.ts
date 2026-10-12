@@ -5,10 +5,10 @@ import {
   toLoginOptions,
   USERNAME_KEY,
   writeLastOnline,
-} from "./settings";
-import { clearTimer, readCredential, scheduleTimer } from "./utils";
-import type { LoginResult, OnlineStatus, Status } from "./types";
-import { statusReducer } from "./status";
+} from "@/domain/settings";
+import { clearTimer, readCredential, scheduleTimer } from "@/common/utils";
+import type { LoginResult, OnlineStatus, Status } from "@/common/types";
+import { statusReducer } from "@/domain/status";
 
 export interface SessionApi {
   status: Status;

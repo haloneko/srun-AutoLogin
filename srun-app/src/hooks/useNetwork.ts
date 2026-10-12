@@ -5,11 +5,11 @@ import {
   readSetting,
   readStartupMode,
   USERNAME_KEY,
-} from "./settings";
-import { readCredential } from "./utils";
-import { useSession } from "./useSession";
-import { useWifi } from "./useWifi";
-import type { OnlineStatus, Status, WifiStatus } from "./types";
+} from "@/domain/settings";
+import { readCredential } from "@/common/utils";
+import { useSession } from "@/hooks/useSession";
+import { useWifi } from "@/hooks/useWifi";
+import type { OnlineStatus, Status, WifiStatus } from "@/common/types";
 
 export interface NetworkApi {
   status: Status;

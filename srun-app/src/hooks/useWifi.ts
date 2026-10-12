@@ -7,10 +7,10 @@ import {
   readWifiPassword,
   readWifiSsid,
   USERNAME_KEY,
-} from "./settings";
-import { clearTimer, readCredential, scheduleTimer } from "./utils";
-import type { WifiStatus } from "./types";
-import type { SessionApi } from "./useSession";
+} from "@/domain/settings";
+import { clearTimer, readCredential, scheduleTimer } from "@/common/utils";
+import type { WifiStatus } from "@/common/types";
+import type { SessionApi } from "@/hooks/useSession";
 
 /// 连上校园网后延迟自动探测的时长（WLAN 事件在关联完成后立即触发，此时 DHCP 可能尚未就绪）
 const AUTO_PROBE_DELAY = 3000;
