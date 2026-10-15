@@ -51,21 +51,30 @@ impl SrunHttp {
     ///
     /// `path` 会拼接到 `base_url`（如 `/cgi-bin/get_challenge`）；
     /// `params` 作为 URL query 传入。
+    ///
+    /// 日志策略：
+    /// - 成功记 `debug`（高频轮询不刷屏）
+    /// - 失败记 `warn`，错误用 `without_url()` 去掉完整 URL——
+    ///   避免把加密参数（password/info）泄露进日志或上层错误提示
     pub async fn get_jsonp(&self, path: &str, params: &[(&str, &str)]) -> Result<String> {
         let url = self
             .base_url
             .join(path)
             .map_err(|e| SrunError::Http(format!("URL join 失败: {e}")))?;
-        let text = self
-            .client
-            .get(url)
-            .query(params)
-            .send()
-            .await
-            .map_err(|e| SrunError::Http(e.to_string()))?
-            .text()
-            .await
-            .map_err(|e| SrunError::Http(e.to_string()))?;
+        let resp = self.client.get(url).query(params).send().await;
+        let text = match resp {
+            Ok(r) => r.text().await,
+            Err(e) => {
+                let msg = e.without_url().to_string();
+                log::warn!("HTTP 请求失败: {path} ({msg})");
+                return Err(SrunError::Http(msg));
+            }
+        };
+        let text = text.map_err(|e| {
+            log::warn!("HTTP 响应读取失败: {path} ({e})");
+            SrunError::Http(e.to_string())
+        })?;
+        log::debug!("HTTP GET {path} 成功: {} 字节", text.len());
         Ok(text)
     }
 }

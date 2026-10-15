@@ -69,7 +69,7 @@ pub fn start(app: &tauri::App) {
         // Windows 8+ 由 WlanOpenHandle 内部完成 CoInitializeEx(MTA)，此处无需自行初始化；
         // 返回 0 表示 ERROR_SUCCESS
         if WlanOpenHandle(2, None, &mut negotiated, &mut handle) != 0 {
-            eprintln!("[wifi_watcher] WlanOpenHandle 失败，WiFi 变动监听不可用");
+            log::warn!("wifi_watcher: WlanOpenHandle 失败，WiFi 变动监听不可用");
             WATCHER_STARTED.store(false, Ordering::SeqCst);
             return;
         }
@@ -87,7 +87,7 @@ pub fn start(app: &tauri::App) {
             None,
         );
         if result != 0 {
-            eprintln!("[wifi_watcher] WlanRegisterNotification 失败，WiFi 变动监听不可用");
+            log::warn!("wifi_watcher: WlanRegisterNotification 失败，WiFi 变动监听不可用");
             drop(Box::from_raw(ctx));
             WATCHER_STARTED.store(false, Ordering::SeqCst);
             return;

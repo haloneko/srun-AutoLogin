@@ -7,6 +7,7 @@ use serde_json::Value;
 use srun_core::http::SrunHttp;
 use srun_core::login::SrunLoginOptions;
 use srun_core::status::OnlineStatus;
+mod logging;
 mod wifi;
 mod wifi_watcher;
 
@@ -128,9 +129,13 @@ async fn srun_login(
     options: GatewayOptions,
 ) -> Result<Value, String> {
     let opts = options.to_srun_options();
-    srun_core::login::login_ex(&username, &password, &opts)
-        .await
-        .map_err(|e| e.to_string())
+    // 只记用户名，密码 / 加密参数绝不写入日志
+    log::info!("收到登录请求: username={username}");
+    let result = srun_core::login::login_ex(&username, &password, &opts).await;
+    if let Err(e) = &result {
+        log::error!("登录失败: username={username}, err={e}");
+    }
+    result.map_err(|e| e.to_string())
 }
 
 /// 在线状态 command：前端 `invoke("srun_status", { options })` 调用。
@@ -141,9 +146,12 @@ async fn srun_status(options: GatewayOptions) -> Result<OnlineStatus, String> {
     let opts = options.to_srun_options();
     let http = SrunHttp::with_base_url_and_ua(&opts.base_url, &opts.user_agent)
         .map_err(|e| e.to_string())?;
-    srun_core::status::get_online_status(&http)
-        .await
-        .map_err(|e| e.to_string())
+    // 状态查询是高频轮询：成功路径不记日志（核心层有 debug），只记失败
+    let result = srun_core::status::get_online_status(&http).await;
+    if let Err(e) = &result {
+        log::warn!("状态查询失败: {e}");
+    }
+    result.map_err(|e| e.to_string())
 }
 
 /// 注销 command：前端 `invoke("srun_logout", { options })` 调用。
@@ -155,9 +163,11 @@ async fn srun_logout(options: GatewayOptions) -> Result<Value, String> {
     let opts = options.to_srun_options();
     let http = SrunHttp::with_base_url_and_ua(&opts.base_url, &opts.user_agent)
         .map_err(|e| e.to_string())?;
-    srun_core::logout::logout(&http)
-        .await
-        .map_err(|e| e.to_string())
+    let result = srun_core::logout::logout(&http).await;
+    if let Err(e) = &result {
+        log::error!("注销失败: {e}");
+    }
+    result.map_err(|e| e.to_string())
 }
 
 /// 当前无线连接状态 command：前端 `invoke("wifi_status")` 调用。
@@ -169,9 +179,14 @@ async fn srun_logout(options: GatewayOptions) -> Result<Value, String> {
 /// netsh 期间窗口会整体假死（启动后几秒「点不动、拖不动」）。
 #[tauri::command]
 async fn wifi_status() -> Result<wifi::WifiStatus, String> {
-    tauri::async_runtime::spawn_blocking(wifi::current_status)
+    // 状态查询是高频轮询：成功路径不记日志，只记失败
+    let result = tauri::async_runtime::spawn_blocking(wifi::current_status)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string());
+    if let Err(e) = &result {
+        log::warn!("WiFi 状态查询失败: {e}");
+    }
+    result
 }
 
 /// 连接指定 WiFi command：前端 `invoke("wifi_connect", { ssid, password })` 调用。
@@ -187,9 +202,20 @@ async fn wifi_connect(
     password: Option<String>,
 ) -> Result<wifi::WifiConnectResult, String> {
     let password = password.unwrap_or_default();
-    tauri::async_runtime::spawn_blocking(move || wifi::connect(&ssid, &password))
+    let ssid_for_log = ssid.clone();
+    log::info!("WiFi 连接请求: ssid={ssid_for_log}");
+    let inner = tauri::async_runtime::spawn_blocking(move || wifi::connect(&ssid, &password))
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+    // 只记 ssid 与结果标志，WiFi 密码不写入日志
+    match &inner {
+        Ok(result) if result.connected => log::info!("WiFi 连接完成: ssid={ssid_for_log}"),
+        Ok(result) => {
+            log::warn!("WiFi 连接未完成: ssid={ssid_for_log}, msg={}", result.message)
+        }
+        Err(e) => log::error!("WiFi 连接失败: ssid={ssid_for_log}, err={e}"),
+    }
+    inner
 }
 
 /// 开机自启动拉起时附加的命令行参数，用于区分「自启动」与「用户手动启动」。
@@ -219,11 +245,18 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             // 第二次启动：不新建实例。
             // 手动启动（无 --silent）唤出已有窗口；自启动重复拉起则保持后台驻留。
-            if !args.iter().any(|a| a == AUTOSTART_FLAG) {
+            let silent = args.iter().any(|a| a == AUTOSTART_FLAG);
+            log::info!("重复启动被拦截（silent={silent}），唤出已有窗口");
+            if !silent {
                 show_main_window(app);
             }
         }))
         .setup(|app| {
+            // 先初始化文件日志，再执行后续流程，保证所有日志都能落盘
+            if let Ok(log_dir) = app.path().app_log_dir() {
+                let _ = logging::init(log_dir);
+            }
+            log::info!("应用启动，自启动拉起: {}", is_autostart_launch_impl());
             setup_tray(app)?;
             // 监听 WiFi 连接状态变动（WLAN API 通知），变动时向前端发 wifi-changed 事件
             wifi_watcher::start(app);

@@ -32,13 +32,16 @@ pub fn build_logout_sign(username: &str, ip: &str, unbind: u32, ts: u64) -> Stri
 /// 2. 构造 `time`（当前秒）与 `sign`
 /// 3. `rad_user_dm` 发起注销，返回网关原始解析结果
 pub async fn logout(http: &SrunHttp) -> Result<Value> {
+    log::info!("注销开始");
     let user_info = user::get_user_info(http).await?;
     let username = crate::status::extract_username(&user_info);
     if username.is_empty() {
+        log::warn!("注销失败: 未获取到账号");
         return Err(SrunError::MissingField("uid/user_name/username"));
     }
     let ip = crate::status::extract_ip(&user_info);
     if ip.is_empty() {
+        log::warn!("注销失败: 未获取到 IP（username={username}）");
         return Err(SrunError::MissingField("user_ip/online_ip/client_ip"));
     }
 
@@ -55,7 +58,9 @@ pub async fn logout(http: &SrunHttp) -> Result<Value> {
         ("sign", sign),
         ("_", now_millis()),
     ];
-    user::dm(http, &params).await
+    let res = user::dm(http, &params).await?;
+    log::info!("注销完成");
+    Ok(res)
 }
 
 #[cfg(test)]

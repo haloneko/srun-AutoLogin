@@ -23,6 +23,7 @@ sha1 = "0.10"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "cookies", "json"] }
 # 异步运行时（HTTP 调用必需）
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+log = "0.4"
 
 [dev-dependencies]
 # async mock HTTP server，用于 http/api 模块集成测试
