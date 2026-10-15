@@ -67,12 +67,10 @@ export default function HistoryWindow() {
       <header className="hw-header">
         <div className="hw-header__titles">
           <h1 className="hw-header__title">网络使用历史</h1>
-          <p className="hw-header__sub">按天查看 · 滚轮缩放 · 拖拽时间条平移 · 应用运行期间自动记录</p>
         </div>
         <div className="hw-header__actions">
           <button type="button" className="hw-btn" onClick={() => void reload()}>
             <IconRefresh size={15} />
-            刷新
           </button>
           <button
             type="button"
@@ -80,7 +78,7 @@ export default function HistoryWindow() {
             onClick={handleClear}
           >
             <IconTrash size={15} />
-            {confirmClear ? "确认清空？" : "清空记录"}
+            {confirmClear ? "确认清空？" : ""}
           </button>
           <button
             type="button"
@@ -109,7 +107,7 @@ export default function HistoryWindow() {
 
       <footer className="hw-footer">
         <span className="hw-footer__note">
-          空白表示当时应用未运行（状态未知）；今天右端更浅的一段是尚未到来的时段。
+          记录中...
         </span>
         <span className="hw-footer__hint">滚轮缩放 · 左键拖拽或滑动条平移</span>
       </footer>
