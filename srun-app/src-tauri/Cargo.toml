@@ -1,6 +1,6 @@
 [package]
 name = "srun-app"
-version = "1.3.0"
+version = "1.4.0"
 description = "深澜校园网自动登录 GUI（Tauri + React）"
 edition = "2021"
 
