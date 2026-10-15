@@ -1,0 +1,338 @@
+/* ===== 网络使用历史（居中卡片 + 按天时间条） ===== */
+/* 时间条需要横向空间，故用居中卡片而非右侧抽屉 */
+.history-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  animation: history-fade 0.2s ease;
+}
+
+@keyframes history-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.history-card {
+  display: flex;
+  flex-direction: column;
+  width: min(640px, 100%);
+  max-height: min(580px, 100%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+  animation: history-pop 0.22s cubic-bezier(0.21, 1.02, 0.73, 1);
+}
+
+@keyframes history-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.history-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-card__titles {
+  min-width: 0;
+}
+
+.history-card__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.history-card__sub {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.history-card__close {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.history-card__close:hover {
+  color: var(--text-1);
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.history-card__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px 14px;
+}
+
+.history-empty {
+  margin: 0;
+  padding: 30px 10px;
+  font-size: 13px;
+  line-height: 1.8;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* ===== 按天的时间条 ===== */
+.history-days {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-day {
+  display: grid;
+  grid-template-columns: 46px 1fr 70px;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-day__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* 轨道：底色 = 状态未知（应用未运行），每 6 小时一条分隔线 */
+.history-day__track {
+  position: relative;
+  height: 16px;
+  border-radius: 5px;
+  background-color: color-mix(in srgb, var(--muted) 10%, transparent);
+  background-image: linear-gradient(to right, var(--border) 1px, transparent 1px);
+  background-size: 25% 100%;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.history-day__duration {
+  font-size: 11px;
+  color: var(--text-2);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ===== 时间条区段 ===== */
+.history-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* 极短区段（几秒的切换）也要看得见 */
+  min-width: 2px;
+  border-radius: 4px;
+  transition: filter 0.15s;
+}
+
+.history-seg:hover {
+  filter: brightness(1.12);
+}
+
+/* 异常退出后补记的区段：右端斜纹表示结束时间不确定 */
+.history-seg--recovered::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.85) 0 2px,
+    transparent 2px 4px
+  );
+}
+
+/* 未连接 */
+.history-seg--off,
+.history-dot--off {
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+}
+
+/* 各网络的区分色（与图例圆点共用） */
+.history-seg--c0,
+.history-dot--c0 {
+  background: #1e88e5;
+}
+
+.history-seg--c1,
+.history-dot--c1 {
+  background: #16a34a;
+}
+
+.history-seg--c2,
+.history-dot--c2 {
+  background: #d97706;
+}
+
+.history-seg--c3,
+.history-dot--c3 {
+  background: #8b5cf6;
+}
+
+.history-seg--c4,
+.history-dot--c4 {
+  background: #0891b2;
+}
+
+.history-seg--c5,
+.history-dot--c5 {
+  background: #db2777;
+}
+
+/* ===== 时间刻度 ===== */
+.history-scale {
+  display: grid;
+  grid-template-columns: 46px 1fr 70px;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.history-scale__ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* ===== 累计图例 ===== */
+.history-legend {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.history-legend__title {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.history-legend__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 13px;
+}
+
+.history-dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.history-legend__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-legend__days {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.history-legend__time {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.history-legend__pct {
+  flex-shrink: 0;
+  width: 34px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+}
+
+.history-legend__note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+/* ===== 底部操作 ===== */
+.history-card__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.history-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.history-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.history-btn--danger {
+  color: var(--danger);
+}
+
+.history-btn--danger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.history-btn--confirm {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(220, 38, 38, 0.12);
+}

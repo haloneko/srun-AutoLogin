@@ -3,8 +3,9 @@ import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import HeroButton from "@/components/HeroButton/HeroButton";
+import NetworkHistoryPanel from "@/components/NetworkHistory/NetworkHistoryPanel";
 import SettingsPanel from "@/components/SettingsPanel/SettingsPanel";
-import { IconClose, IconGear, IconRefresh } from "@/components/icons/Icons";
+import { IconClose, IconGear, IconRefresh, IconTimeline } from "@/components/icons/Icons";
 import { useNetwork } from "@/hooks/useNetwork";
 import { useToasts } from "@/hooks/useToasts";
 import {
@@ -18,6 +19,7 @@ import { formatBytes, formatDuration } from "@/common/utils";
 
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const { toasts, showToast, dismissToast } = useToasts();
   const {
     status,
@@ -75,6 +77,15 @@ export default function App() {
         <button
           type="button"
           className="icon-btn"
+          onClick={() => setHistoryOpen(true)}
+          title="网络使用历史"
+          aria-label="网络使用历史"
+        >
+          <IconTimeline size={20} />
+        </button>
+        <button
+          type="button"
+          className="icon-btn"
           onClick={() => setSettingsOpen(true)}
           title="设置"
           aria-label="设置"
@@ -114,6 +125,11 @@ export default function App() {
       <SettingsPanel
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        onToast={showToast}
+      />
+      <NetworkHistoryPanel
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
         onToast={showToast}
       />
       <main className="home">
