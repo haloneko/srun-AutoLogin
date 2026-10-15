@@ -2,53 +2,95 @@
 .nt-root {
   display: flex;
   flex-direction: column;
-  gap: 6px;
 }
 
-/* ===== 每天一行的时间条 ===== */
-.nt-days {
+/* ===== 工具条：时间范围下拉 + 窗口内记录情况 ===== */
+.nt-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.nt-day {
-  display: grid;
-  grid-template-columns: 62px 1fr 88px;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
 }
 
-.nt-day__label {
+.nt-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.nt-range__select {
+  padding: 6px 10px;
+  font: inherit;
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-2);
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.nt-range__select:hover,
+.nt-range__select:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.nt-toolbar__meta {
+  font-size: 12px;
+  color: var(--muted);
   white-space: nowrap;
 }
 
-/* 轨道底色 = 状态未知（应用未运行）；每小时一条细线，每 6 小时一条粗线 */
-.nt-day__track {
+/* ===== 唯一的一条时间条：底色＝状态未知（应用未运行） ===== */
+.nt-track {
   position: relative;
-  height: 26px;
-  border-radius: 7px;
+  height: 64px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
   background-color: color-mix(in srgb, var(--muted) 10%, transparent);
-  background-image:
-    linear-gradient(
-      to right,
-      color-mix(in srgb, var(--muted) 38%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(to right, var(--border) 1px, transparent 1px);
-  background-size: 25% 100%, 4.1667% 100%;
-  border-right: 1px solid var(--border);
   overflow: hidden;
 }
 
-.nt-day__duration {
+/* 刻度竖线：每小时一条，每 3 小时一条加深（与标签对应） */
+.nt-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.nt-grid > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+}
+
+.nt-grid > .nt-grid__major {
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+}
+
+/* 「今天」还没走到的时段：比「状态未知」更接近底色，
+   免得被误读成「应用一整天没运行」 */
+.nt-future {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  border-left: 1px dashed color-mix(in srgb, var(--muted) 45%, transparent);
+}
+
+.nt-track__empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
   font-size: 12px;
-  color: var(--text-2);
-  text-align: right;
-  white-space: nowrap;
+  color: var(--muted);
 }
 
 /* ===== 时间条区段 ===== */
@@ -56,9 +98,10 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  /* 极短区段（几秒的切换）也要看得见 */
+  /* 极短区段（几秒的切换）也要看得见；右端 1px 缝隙由内联 width 的 calc 让出，
+     相邻区段才不会被糊成一坨 */
   min-width: 2px;
-  border-radius: 5px;
+  border-radius: 4px;
   transition: filter 0.15s, box-shadow 0.15s;
 }
 
@@ -68,14 +111,15 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--card) 75%, transparent);
 }
 
-/* 异常退出后补记的区段：右端斜纹表示结束时间不确定 */
+/* 异常退出后补记的区段：右端斜纹表示结束时间不确定。
+   短区段上斜纹按比例收窄，免得一条几像素的区段被斜纹铺满、反而看不出是斜纹 */
 .nt-seg--recovered::after {
   content: "";
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 5px;
+  width: min(5px, 45%);
   background: repeating-linear-gradient(
     45deg,
     rgba(255, 255, 255, 0.85) 0 2px,
@@ -119,24 +163,25 @@
   background: #db2777;
 }
 
-/* ===== 时间刻度 ===== */
-.nt-scale {
-  display: grid;
-  grid-template-columns: 62px 1fr 88px;
-  gap: 12px;
-  margin-top: 4px;
+/* ===== 刻度标签：与时间条同宽，标签中心对齐刻度线 ===== */
+.nt-ticks {
+  position: relative;
+  height: 15px;
+  margin-top: 7px;
 }
 
-.nt-scale__ticks {
-  display: flex;
-  justify-content: space-between;
+.nt-ticks > span {
+  position: absolute;
+  top: 0;
   font-size: 11px;
   color: var(--muted);
+  white-space: nowrap;
+  transform: translateX(-50%);
 }
 
 /* ===== 累计卡片 ===== */
 .nt-totals {
-  margin-top: 26px;
+  margin-top: 28px;
 }
 
 .nt-totals__title {

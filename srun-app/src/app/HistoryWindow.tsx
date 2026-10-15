@@ -6,7 +6,6 @@ import { IconClose, IconRefresh, IconTrash } from "@/components/icons/Icons";
 import { useNetworkHistory } from "@/hooks/useNetworkHistory";
 import { useToasts } from "@/hooks/useToasts";
 import { applyTheme, readTheme } from "@/domain/settings";
-import { HISTORY_DAYS } from "@/domain/networkHistory";
 import "./HistoryWindow.css";
 
 /// 打开期间自动刷新间隔：让「进行中」的那一段随时间增长
@@ -68,9 +67,7 @@ export default function HistoryWindow() {
       <header className="hw-header">
         <div className="hw-header__titles">
           <h1 className="hw-header__title">网络使用历史</h1>
-          <p className="hw-header__sub">
-            近 {HISTORY_DAYS} 天 · 应用运行期间自动记录 · 每小时刻度
-          </p>
+          <p className="hw-header__sub">按天查看，横轴固定 00:00–24:00 · 应用运行期间自动记录</p>
         </div>
         <div className="hw-header__actions">
           <button type="button" className="hw-btn" onClick={() => void reload()}>
@@ -112,7 +109,7 @@ export default function HistoryWindow() {
 
       <footer className="hw-footer">
         <span className="hw-footer__note">
-          空白表示当时应用未运行（状态未知）；带斜纹的区段是异常退出后补记的，结束时间不精确。
+          空白表示当时应用未运行（状态未知）；斜纹区段是异常退出后补记的，结束时间不精确；今天右端更浅的一段是尚未到来的时段。
         </span>
         <span className="hw-footer__hint">记录仅在应用运行期间产生</span>
       </footer>
