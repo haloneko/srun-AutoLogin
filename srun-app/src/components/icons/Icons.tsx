@@ -71,6 +71,15 @@ export function IconCheck(props: IconProps) {
   );
 }
 
+/// 目录（文件夹）
+export function IconFolder(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+    </SvgIcon>
+  );
+}
+
 /// 显示密码（眼睛）
 export function IconEye(props: IconProps) {
   return (

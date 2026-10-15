@@ -244,6 +244,61 @@ fn network_history_clear() -> Result<(), String> {
     network_history::clear()
 }
 
+/// 用系统文件管理器打开目录。
+///
+/// Windows 用 `explorer`（成功也可能返回非 0 退出码，故只看是否启动成功）；
+/// 目录含逗号时 explorer 会把逗号当分隔符，属于已知的系统行为，不额外处理。
+fn open_in_file_manager(dir: &std::path::Path) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        /// 不为子进程创建控制台窗口
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        std::process::Command::new("explorer")
+            .arg(dir)
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .map_err(|e| format!("打开目录失败: {e}"))?;
+        Ok(())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(dir)
+            .spawn()
+            .map_err(|e| format!("打开目录失败: {e}"))?;
+        Ok(())
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(dir)
+            .spawn()
+            .map_err(|e| format!("打开目录失败: {e}"))?;
+        Ok(())
+    }
+}
+
+/// 打开日志目录 command：前端 `invoke("open_log_dir")` 调用。
+///
+/// 返回被打开的目录路径（前端提示用）。目录不存在时先创建，日志初始化失败也能打开。
+#[tauri::command]
+async fn open_log_dir(app: AppHandle) -> Result<String, String> {
+    let dir = app
+        .path()
+        .app_log_dir()
+        .map_err(|e| format!("无法定位日志目录: {e}"))?;
+    let target = dir.clone();
+    // 建目录 + 拉起文件管理器都放到阻塞线程池，避免主线程卡顿
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::create_dir_all(&target).map_err(|e| format!("创建日志目录失败: {e}"))?;
+        open_in_file_manager(&target)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    Ok(dir.display().to_string())
+}
+
 /// 开机自启动拉起时附加的命令行参数，用于区分「自启动」与「用户手动启动」。
 /// 自启动隐藏、手动启动显示主窗口，依赖该标记判断。
 const AUTOSTART_FLAG: &str = "--silent";
@@ -325,7 +380,8 @@ pub fn run() {
             wifi_status,
             wifi_connect,
             network_history_get,
-            network_history_clear
+            network_history_clear,
+            open_log_dir
         ])
         .build(tauri::generate_context!())
         .expect("Tauri 应用启动失败")
