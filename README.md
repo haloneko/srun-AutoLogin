@@ -37,8 +37,8 @@ srun/
 ├── srun-cli/               # 命令行工具
 ├── srun-app/               # 桌面应用（React 前端 + Tauri 壳）
 │   ├── src/                # React 前端
-│   │   ├── app/            # 应用壳（App.tsx、全局样式）
-│   │   ├── components/     # UI 组件（HeroButton / SettingsPanel / NetworkHistory / icons）
+│   │   ├── app/            # 应用壳（主窗口 App.tsx / 历史窗口 HistoryWindow.tsx、全局样式）
+│   │   ├── components/     # UI 组件（HeroButton / SettingsPanel / NetworkHistory / Toast / icons）
 │   │   ├── hooks/          # 业务 Hook（useNetwork / useSession / useWifi / useToasts / useNetworkHistory）
 │   │   ├── domain/         # 纯领域逻辑（settings / status / networkHistory）
 │   │   └── common/         # 公共类型与工具（types / utils）

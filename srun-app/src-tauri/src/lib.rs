@@ -233,6 +233,9 @@ async fn wifi_connect(
 /// `ssid=null` 表示明确未连接；没有任何记录的时间段表示应用未运行（状态未知）。
 #[tauri::command]
 fn network_history_get(days: u32) -> Vec<network_history::Segment> {
+    // ===== TEMP PROBE =====
+    log::info!("[probe] network_history_get 被调用: days={days}");
+    // ===== /TEMP PROBE =====
     network_history::segments(days)
 }
 
@@ -242,6 +245,65 @@ fn network_history_get(days: u32) -> Vec<network_history::Segment> {
 #[tauri::command]
 fn network_history_clear() -> Result<(), String> {
     network_history::clear()
+}
+
+/// 「网络使用历史」独立窗口的 label（前端据此决定渲染哪个界面）
+const HISTORY_WINDOW_LABEL: &str = "history";
+
+/// 打开「网络使用历史」独立窗口 command：前端 `invoke("open_history_window")` 调用。
+///
+/// 窗口已存在（最小化或被遮挡）时直接唤起并聚焦，不重复创建；
+/// 历史界面需要横向空间展示 24 小时时间条，故用独立窗口而非应用内弹层。
+///
+/// **必须保持 `async`**：Windows 上 `WebviewWindowBuilder::build` 在同步 command（主线程）
+/// 中会死锁——主线程在这里等 WebView2 消息循环，而消息循环正被它自己挡住，
+/// 表现为新窗口白屏、连原生关闭按钮都无响应、其它 command 全部排队卡死。
+/// 异步 command 会挪到异步运行时线程，由 Tauri 把建窗动作派发回主线程执行，不再自锁。
+#[tauri::command]
+async fn open_history_window(app: AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window(HISTORY_WINDOW_LABEL) {
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
+        return Ok(());
+    }
+    let mut builder = tauri::WebviewWindowBuilder::new(
+        &app,
+        HISTORY_WINDOW_LABEL,
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title("网络使用历史")
+    .inner_size(1000.0, 640.0)
+    .min_inner_size(760.0, 480.0)
+    .center();
+    // 与主窗口一致使用应用图标（不设置则回退到系统默认图标）
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone()).map_err(|e| e.to_string())?;
+    }
+    match builder.build() {
+        Ok(_) => {
+            log::info!("已打开网络使用历史窗口");
+            Ok(())
+        }
+        // 连点两次时可能已被另一次调用创建：按「已打开」处理，不当成失败
+        Err(e) => {
+            if app.get_webview_window(HISTORY_WINDOW_LABEL).is_some() {
+                Ok(())
+            } else {
+                Err(format!("打开历史窗口失败: {e}"))
+            }
+        }
+    }
+}
+
+/// 关闭调用本命令的窗口：前端 `invoke("close_current_window")` 调用。
+///
+/// 走应用自身的 command 而非窗口插件 ACL，关闭按钮不依赖 `core:window:allow-close`
+/// 的权限范围（少一个运行期未知项）；同样保持 `async`，窗口销毁由 Tauri 派发回主线程执行。
+#[tauri::command]
+async fn close_current_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    log::info!("关闭窗口: {}", window.label());
+    window.close().map_err(|e| format!("关闭窗口失败: {e}"))
 }
 
 /// 用系统文件管理器打开目录。
@@ -364,10 +426,12 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // 点 × 关闭：隐藏到托盘后台运行，而非退出应用
+            // 仅主窗口点 × 时隐藏到托盘后台运行；历史窗口等辅助窗口允许真正关闭
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let _ = window.hide();
-                api.prevent_close();
+                if window.label() == "main" {
+                    let _ = window.hide();
+                    api.prevent_close();
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -381,7 +445,9 @@ pub fn run() {
             wifi_connect,
             network_history_get,
             network_history_clear,
-            open_log_dir
+            open_log_dir,
+            open_history_window,
+            close_current_window
         ])
         .build(tauri::generate_context!())
         .expect("Tauri 应用启动失败")

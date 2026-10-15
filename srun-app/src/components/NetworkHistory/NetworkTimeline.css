@@ -1,0 +1,216 @@
+/* ===== 网络使用时间线（独立大窗口视图） ===== */
+.nt-root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ===== 每天一行的时间条 ===== */
+.nt-days {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.nt-day {
+  display: grid;
+  grid-template-columns: 62px 1fr 88px;
+  align-items: center;
+  gap: 12px;
+}
+
+.nt-day__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* 轨道底色 = 状态未知（应用未运行）；每小时一条细线，每 6 小时一条粗线 */
+.nt-day__track {
+  position: relative;
+  height: 26px;
+  border-radius: 7px;
+  background-color: color-mix(in srgb, var(--muted) 10%, transparent);
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--muted) 38%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to right, var(--border) 1px, transparent 1px);
+  background-size: 25% 100%, 4.1667% 100%;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.nt-day__duration {
+  font-size: 12px;
+  color: var(--text-2);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ===== 时间条区段 ===== */
+.nt-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* 极短区段（几秒的切换）也要看得见 */
+  min-width: 2px;
+  border-radius: 5px;
+  transition: filter 0.15s, box-shadow 0.15s;
+}
+
+.nt-seg:hover {
+  z-index: 1;
+  filter: brightness(1.12);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--card) 75%, transparent);
+}
+
+/* 异常退出后补记的区段：右端斜纹表示结束时间不确定 */
+.nt-seg--recovered::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 5px;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.85) 0 2px,
+    transparent 2px 4px
+  );
+}
+
+/* ===== 配色：时间条与累计卡片共用 ===== */
+.nt-seg--off,
+.nt-swatch--off {
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+}
+
+.nt-seg--c0,
+.nt-swatch--c0 {
+  background: #1e88e5;
+}
+
+.nt-seg--c1,
+.nt-swatch--c1 {
+  background: #16a34a;
+}
+
+.nt-seg--c2,
+.nt-swatch--c2 {
+  background: #d97706;
+}
+
+.nt-seg--c3,
+.nt-swatch--c3 {
+  background: #8b5cf6;
+}
+
+.nt-seg--c4,
+.nt-swatch--c4 {
+  background: #0891b2;
+}
+
+.nt-seg--c5,
+.nt-swatch--c5 {
+  background: #db2777;
+}
+
+/* ===== 时间刻度 ===== */
+.nt-scale {
+  display: grid;
+  grid-template-columns: 62px 1fr 88px;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.nt-scale__ticks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ===== 累计卡片 ===== */
+.nt-totals {
+  margin-top: 26px;
+}
+
+.nt-totals__title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.nt-totals__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.nt-card {
+  padding: 12px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.nt-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nt-swatch {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.nt-card__name {
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-card__tag {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(30, 136, 229, 0.12);
+  border-radius: 999px;
+}
+
+.nt-card__time {
+  margin-top: 8px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.nt-card__meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.nt-card__bar {
+  margin-top: 10px;
+  height: 6px;
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.nt-card__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
