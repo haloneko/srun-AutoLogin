@@ -54,6 +54,8 @@ unsafe extern "system" fn on_wlan_notification(
         let status = tauri::async_runtime::spawn_blocking(crate::wifi::current_status)
             .await
             .unwrap_or_default();
+        // 网络历史埋点：状态机自行去重（同网络重复通知不产生记录），写入量极小
+        crate::network_history::on_status(status.ssid.as_deref());
         let _ = app.emit("wifi-changed", status);
     });
 }

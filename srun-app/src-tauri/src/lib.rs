@@ -8,6 +8,7 @@ use srun_core::http::SrunHttp;
 use srun_core::login::SrunLoginOptions;
 use srun_core::status::OnlineStatus;
 mod logging;
+mod network_history;
 mod wifi;
 mod wifi_watcher;
 
@@ -186,6 +187,10 @@ async fn wifi_status() -> Result<wifi::WifiStatus, String> {
     if let Err(e) = &result {
         log::warn!("WiFi 状态查询失败: {e}");
     }
+    if let Ok(status) = &result {
+        // 网络历史兜底埋点：watcher 通知不可用时，前端轮询也能续上时间线（状态机自行去重）
+        network_history::on_status(status.ssid.as_deref());
+    }
     result
 }
 
@@ -209,13 +214,34 @@ async fn wifi_connect(
         .map_err(|e| e.to_string())?;
     // 只记 ssid 与结果标志，WiFi 密码不写入日志
     match &inner {
-        Ok(result) if result.connected => log::info!("WiFi 连接完成: ssid={ssid_for_log}"),
+        Ok(result) if result.connected => {
+            log::info!("WiFi 连接完成: ssid={ssid_for_log}");
+            // 连接已确认关联成功（wifi::connect 轮询确认过），直接续上网络历史，不等 watcher 通知
+            network_history::on_status(Some(&ssid_for_log));
+        }
         Ok(result) => {
             log::warn!("WiFi 连接未完成: ssid={ssid_for_log}, msg={}", result.message)
         }
         Err(e) => log::error!("WiFi 连接失败: ssid={ssid_for_log}, err={e}"),
     }
     inner
+}
+
+/// 网络连接历史 command：前端 `invoke("network_history_get", { days: 5 })` 调用。
+///
+/// 返回近 `days` 天内的连接区间（已裁剪到窗口内，含当前进行中的区间），
+/// `ssid=null` 表示明确未连接；没有任何记录的时间段表示应用未运行（状态未知）。
+#[tauri::command]
+fn network_history_get(days: u32) -> Vec<network_history::Segment> {
+    network_history::segments(days)
+}
+
+/// 清空网络连接历史 command：`invoke("network_history_clear")` 调用。
+///
+/// 当前连接继续沿用（不制造区间端点），仅清掉已记录的区间。
+#[tauri::command]
+fn network_history_clear() -> Result<(), String> {
+    network_history::clear()
 }
 
 /// 开机自启动拉起时附加的命令行参数，用于区分「自启动」与「用户手动启动」。
@@ -257,9 +283,22 @@ pub fn run() {
                 let _ = logging::init(log_dir);
             }
             log::info!("应用启动，自启动拉起: {}", is_autostart_launch_impl());
+            // 网络历史：读盘恢复（崩溃补记 + 过期裁剪）并启动心跳线程
+            if let Ok(data_dir) = app.path().app_data_dir() {
+                if let Err(e) = network_history::init(data_dir) {
+                    log::warn!("网络历史初始化失败: {e}");
+                }
+            }
             setup_tray(app)?;
             // 监听 WiFi 连接状态变动（WLAN API 通知），变动时向前端发 wifi-changed 事件
             wifi_watcher::start(app);
+            // 用当前网络状态建立时间线起点（netsh 是阻塞调用，放到阻塞线程池）
+            tauri::async_runtime::spawn(async {
+                let status = tauri::async_runtime::spawn_blocking(wifi::current_status)
+                    .await
+                    .unwrap_or_default();
+                network_history::on_status(status.ssid.as_deref());
+            });
             // 窗口默认隐藏（tauri.conf.json visible:false）。
             // 手动启动（命令行无 --silent）时由后端直接显示主窗口，不经过前端 JS：
             // 避免 WebView 未就绪或前端脚本报错导致窗口永不出现。
@@ -284,8 +323,17 @@ pub fn run() {
             autostart_set,
             is_autostart_launch,
             wifi_status,
-            wifi_connect
+            wifi_connect,
+            network_history_get,
+            network_history_clear
         ])
-        .run(tauri::generate_context!())
-        .expect("Tauri 应用启动失败");
+        .build(tauri::generate_context!())
+        .expect("Tauri 应用启动失败")
+        .run(|_app, event| {
+            // 正常退出（托盘「退出」/ 系统关机请求）：闭合当前区间后落盘，
+            // 避免这次退出在下次启动时被当成崩溃补记（不写 recovered 记录）
+            if matches!(event, tauri::RunEvent::Exit) {
+                network_history::shutdown();
+            }
+        });
 }
