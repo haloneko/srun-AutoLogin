@@ -1,7 +1,8 @@
-/// 网络使用历史的纯领域逻辑：把后端返回的区间裁剪到「某一天」，换算成时间条并做累计统计。
+/// 网络使用历史的纯领域逻辑：把后端返回的区间裁剪到当前视窗，换算成时间条并做累计统计。
 ///
-/// 与界面无关，只做时间计算，便于单独推理：时间线只画一条，横轴固定是一整天
-/// （00:00–24:00，一天还是 24 小时），下拉列表只换「看哪一天」。
+/// 与界面无关，只做时间计算，便于单独推理：时间线只画一条，视窗默认是一整天
+/// （00:00–24:00），放大后可以看一天里的某一段；下拉列表只换「看哪一天」，
+/// 累计始终按整天算。
 
 import type { NetworkSegment } from "@/common/types";
 
@@ -53,33 +54,50 @@ export function dayWindow(dayStart: number): { from: number; to: number } {
   return { from: dayStart, to: dayStart + DAY_MS };
 }
 
-/// 时间条上的一段（已裁剪到时间窗内）
+/// 时间条上的一段（已裁剪到当前视窗内）
 export interface TrackSegment {
   ssid: string | null;
-  /// 已裁剪到窗口的起止时间
+  /// 已裁剪到视窗的起止时间
   start: number;
   end: number;
-  recovered: boolean;
-  /// 相对窗口左端的百分比位置（0–100）
+  /// 相对视窗左端的百分比位置（0–100）
   left: number;
-  /// 占窗口时长的百分比宽度
+  /// 占视窗时长的百分比宽度
   width: number;
 }
 
 /// 时间轴上的一条刻度
 export interface Tick {
   ts: number;
-  /// 相对窗口左端的百分比位置（0–100）
+  /// 相对视窗左端的百分比位置（0–100）
   left: number;
   label: string;
-  /// 是否整点「粗」刻度：每 3 小时一条，带文字标签
+  /// 是否为带文字标签的主刻度；否则只是主刻度之间的细分线
   major: boolean;
 }
 
-/// 把区间裁剪到 [from, to] 窗口并换算成百分比位置（按开始时间正序）。
+/// 主刻度的候选步长（毫秒），由细到粗：挑第一个让主刻度数不超 `MAX_TICKS` 的
+const TICK_STEPS = [
+  60_000, // 1 分
+  120_000, // 2 分
+  300_000, // 5 分
+  900_000, // 15 分
+  1_800_000, // 30 分
+  HOUR_MS, // 1 时
+  2 * HOUR_MS,
+  3 * HOUR_MS,
+  6 * HOUR_MS,
+  12 * HOUR_MS,
+  DAY_MS, // 1 天
+];
+/// 时间轴上最多画几条带标签的主刻度（再多就挤成一片）
+const MAX_TICKS = 8;
+/// 主刻度之间再细分几格（整天视图靠它保持「每小时一条线」）
+const MINOR_DIVISIONS = 3;
+
+/// 把区间裁剪到 [from, to] 视窗并换算成百分比位置（按开始时间正序）。
 ///
-/// 不做合并：后端只在状态真的变化时才落一条记录，`recovered` 的两段也刻意不并，
-/// 前端再合会把这些区分抹掉。
+/// 不做合并：后端只在状态真的变化时才落一条记录，前端再合会把真实切换抹掉。
 export function buildTrack(
   segments: NetworkSegment[],
   from: number,
@@ -96,7 +114,6 @@ export function buildTrack(
       ssid: seg.ssid,
       start: a,
       end: b,
-      recovered: seg.recovered,
       left: ((a - from) / span) * 100,
       width: ((b - a) / span) * 100,
     });
@@ -105,19 +122,29 @@ export function buildTrack(
   return out;
 }
 
-/// 整日时间线的刻度：每小时一条竖线，每 3 小时一条粗线并带时刻标签。
+/// 时间刻度：挑一条「整齐」的主步长（整分 / 整刻 / 整时 / 整天），主刻度之间再画细分线。
 ///
-/// 横轴固定 24 等分，所以刻度位置直接按小时数算，不受窗口真实长度影响。
-export function buildDayTicks(from: number): Tick[] {
+/// 刻度对齐到本地整点或 0 点——视窗从 01:09 开始也不会出现 01:09、02:09 这种脏标签。
+/// 整天视图（24 小时）选出的主步长是 3 小时，细分线正好落在每小时，和刻度尺一致。
+export function buildTicks(from: number, to: number): Tick[] {
+  const span = to - from;
+  if (span <= 0) return [];
+  const step = TICK_STEPS.find((s) => span / s <= MAX_TICKS) ?? TICK_STEPS[TICK_STEPS.length - 1];
+  // 主刻度之间再切细线；切不出整数就只画主刻度
+  const minor = step % MINOR_DIVISIONS === 0 ? step / MINOR_DIVISIONS : 0;
+  const gap = minor || step;
+  // 以左端当天的 0 点为基准对齐，刻度才会落在整齐的本地时刻上
+  const base = startOfDay(from);
+  /// 视窗右端正好是某天的 0 点（整天视图）：末尾刻度按一天的说法标成 24:00
+  const endOfDay = to === startOfDay(to) ? to : null;
   const out: Tick[] = [];
-  for (let hour = 0; hour <= 24; hour++) {
-    const major = hour % 3 === 0;
+  for (let t = base + Math.ceil((from - base) / gap) * gap; t <= to; t += gap) {
+    const major = (t - base) % step === 0;
     out.push({
-      ts: from + hour * HOUR_MS,
-      left: (hour / 24) * 100,
+      ts: t,
+      left: ((t - from) / span) * 100,
       major,
-      // 末尾那条是次日的 0 点，按一天的说法标成 24:00
-      label: major ? (hour === 24 ? "24:00" : formatClock(from + hour * HOUR_MS)) : "",
+      label: !major ? "" : t === endOfDay ? "24:00" : formatClock(t),
     });
   }
   return out;
@@ -172,12 +199,6 @@ export function colorMap(segments: NetworkSegment[]): Map<string, number> {
   return new Map(names.map((name, i) => [name, i % PALETTE_SIZE]));
 }
 
-/// 时间戳 → "M/D HH:MM"（跨天的区段用，避免只看时刻分不清是哪一天）
-export function formatStamp(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getMonth() + 1}/${d.getDate()} ${formatClock(ts)}`;
-}
-
 /// 时间戳 → "HH:MM"（当天内）
 export function formatClock(ts: number): string {
   const d = new Date(ts);
@@ -210,14 +231,11 @@ export function formatSpan(ms: number): string {
   return m === 0 ? `${h} 小时` : `${h} 小时 ${m} 分`;
 }
 
-/// 时间条的悬停说明：网络名 + 起止时刻 + 时长（+ 结束时间不确定的提示）
+/// 时间条的悬停说明：网络名 + 起止时刻 + 时长
 ///
-/// 区段跨天时两端都带上日期，否则「00:00–23:59」看不出是哪一天。
+/// 时间线只画一天，区段必定落在同一天内，所以两端只给时刻就够了。
 export function segmentTitle(seg: TrackSegment): string {
   const name = seg.ssid ?? "未连接";
   const span = formatSpan(seg.end - seg.start);
-  const crossesDay = startOfDay(seg.start) !== startOfDay(seg.end);
-  const fmt = crossesDay ? formatStamp : formatClock;
-  const tail = seg.recovered ? "（异常退出，结束时间不确定）" : "";
-  return `${name} ${fmt(seg.start)}–${fmt(seg.end)}，${span}${tail}`;
+  return `${name} ${formatClock(seg.start)}–${formatClock(seg.end)}，${span}`;
 }

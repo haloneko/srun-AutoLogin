@@ -4,11 +4,10 @@
   flex-direction: column;
 }
 
-/* ===== 工具条：时间范围下拉 + 窗口内记录情况 ===== */
+/* ===== 工具条：日期下拉 + 当前视窗 + 当天记录情况 ===== */
 .nt-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   margin-bottom: 14px;
 }
@@ -39,7 +38,17 @@
   outline: none;
 }
 
+/* 当前显示的时间段：缩放 / 平移后一眼看出在看哪一段 */
+.nt-toolbar__span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .nt-toolbar__meta {
+  margin-left: auto;
   font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
@@ -55,7 +64,18 @@
   overflow: hidden;
 }
 
-/* 刻度竖线：每小时一条，每 3 小时一条加深（与标签对应） */
+/* 放大之后可以拖拽平移，给个抓手光标提示 */
+.nt-track--pannable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.nt-track--pannable:active {
+  cursor: grabbing;
+}
+
+/* 刻度竖线：细分线一条，带标签的主刻度一条加深 */
 .nt-grid {
   position: absolute;
   inset: 0;
@@ -111,22 +131,6 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--card) 75%, transparent);
 }
 
-/* 异常退出后补记的区段：右端斜纹表示结束时间不确定。
-   短区段上斜纹按比例收窄，免得一条几像素的区段被斜纹铺满、反而看不出是斜纹 */
-.nt-seg--recovered::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(5px, 45%);
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.85) 0 2px,
-    transparent 2px 4px
-  );
-}
-
 /* ===== 配色：时间条与累计卡片共用 ===== */
 .nt-seg--off,
 .nt-swatch--off {
@@ -177,6 +181,21 @@
   color: var(--muted);
   white-space: nowrap;
   transform: translateX(-50%);
+}
+
+/* ===== 平移滑动条：只在放大后出现；平时也占着高度，免得下方内容跳动 ===== */
+.nt-pan {
+  display: flex;
+  align-items: center;
+  height: 20px;
+  margin-top: 6px;
+}
+
+.nt-pan__slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 /* ===== 累计卡片 ===== */

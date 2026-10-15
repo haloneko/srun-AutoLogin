@@ -67,7 +67,7 @@ export default function HistoryWindow() {
       <header className="hw-header">
         <div className="hw-header__titles">
           <h1 className="hw-header__title">网络使用历史</h1>
-          <p className="hw-header__sub">按天查看，横轴固定 00:00–24:00 · 应用运行期间自动记录</p>
+          <p className="hw-header__sub">按天查看 · 滚轮缩放 · 拖拽时间条平移 · 应用运行期间自动记录</p>
         </div>
         <div className="hw-header__actions">
           <button type="button" className="hw-btn" onClick={() => void reload()}>
@@ -109,9 +109,9 @@ export default function HistoryWindow() {
 
       <footer className="hw-footer">
         <span className="hw-footer__note">
-          空白表示当时应用未运行（状态未知）；斜纹区段是异常退出后补记的，结束时间不精确；今天右端更浅的一段是尚未到来的时段。
+          空白表示当时应用未运行（状态未知）；今天右端更浅的一段是尚未到来的时段。
         </span>
-        <span className="hw-footer__hint">记录仅在应用运行期间产生</span>
+        <span className="hw-footer__hint">滚轮缩放 · 左键拖拽或滑动条平移</span>
       </footer>
     </div>
   );

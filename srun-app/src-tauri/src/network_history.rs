@@ -8,10 +8,12 @@
 //! - **合并语义**：短于 `REJOIN_GRACE_MS` 的断开直接被抵消（视为抖动），
 //!   断开前后两段自然并成一条，而不是事后再扫描合并；
 //!   切换过程中 DHCP 未就绪导致的假断开不会在时间线上留下碎片。
-//! - **崩溃安全**：`open` 连同 `heartbeat` 一起落盘，异常退出（断电 / 杀进程）后重启时
-//!   用 `heartbeat` 作为右端点补一条 `recovered` 记录（最多丢 `HEARTBEAT_MS` 的尾部时长）。
-//!   `recovered` 记录不参与任何合并，因此「突然关机 → 重启 → 连回同一网络」
-//!   必然是两条独立记录，不会被误并成一段。
+//! - **崩溃 / 重启安全**：`open` 连同 `heartbeat` 一起落盘（正常退出也保留 `open`，
+//!   只把 `heartbeat` 推到退出时刻）。重启时若距上次上报不超过 `RECONNECT_GRACE_MS`
+//!   （90 秒），视为「只是关掉又打开了一下」——原区间接着累积，时间线上不留断链；
+//!   超过宽限期才用 `heartbeat` 作为右端点补一条 `recovered` 记录
+//!   （最多丢 `HEARTBEAT_MS` 的尾部时长）。`recovered` 记录不参与任何合并，
+//!   因此「关机很久 → 重启 → 连回同一网络」必然是两条独立记录，不会被误并成一段。
 //! - **有限窗口**：只保留 `RETENTION_DAYS` 天内的记录，查询时再按窗口截断。
 //! - **原子写**：写临时文件 + rename 覆盖，断电不会留下半截 JSON。
 //! - **状态未知 ≠ 离线**：区间内 `ssid=None` 表示「明确未连接」，
@@ -35,6 +37,9 @@ pub const RETENTION_DAYS: u32 = 5;
 pub const REJOIN_GRACE_MS: i64 = 15_000;
 /// `open` 区间心跳落盘间隔：异常退出时最多丢失这么久的尾部时长
 pub const HEARTBEAT_MS: i64 = 30_000;
+/// 重启宽限：距上次上报（`heartbeat`）在此时间内重新打开应用，视为没有断链——
+/// 原区间继续累积，而不是在重启处切一刀留下「状态未知」的空白
+pub const RECONNECT_GRACE_MS: i64 = 90_000;
 /// 记录条数上限（兜底，防止极端切换频率把文件撑大）
 pub const MAX_RECORDS: usize = 2000;
 /// 心跳线程轮询间隔
@@ -76,7 +81,7 @@ pub struct Segment {
     pub ssid: Option<String>,
     pub start: i64,
     pub end: i64,
-    /// 崩溃恢复补记的区间（界面上可提示「此处可能不完整」）
+    /// 超期恢复补记的区间：结束时间不确定，数据可能不完整
     pub recovered: bool,
 }
 
@@ -113,7 +118,10 @@ pub struct History {
 }
 
 impl History {
-    /// 从落盘状态恢复：上次遗留的 `open` 以 `heartbeat` 为右端点补记（标记 `recovered`）
+    /// 从落盘状态恢复上次遗留的 `open`：
+    ///
+    /// - 距上次上报不超过 `RECONNECT_GRACE_MS`：只是关掉又打开了一下，原区间接着累积；
+    /// - 超过宽限期：用 `heartbeat` 作为右端点补一条 `recovered` 记录（结束时间不确定）。
     fn from_disk(disk: Disk, now: i64) -> Self {
         let mut h = History {
             records: disk.records,
@@ -123,14 +131,24 @@ impl History {
         h.records.sort_by_key(|r| r.start);
         if let Some(o) = disk.open {
             let hb = o.heartbeat.max(o.start);
-            match o.lost_at {
-                // 崩溃前已断开：补一段连接区间 + 一段未连接区间
-                Some(t) => {
-                    let t = t.clamp(o.start, hb);
-                    h.push_closed(o.ssid, o.start, t, true);
-                    h.push_closed(None, t, hb, true);
+            if now - hb <= RECONNECT_GRACE_MS {
+                // 接着上次那段继续记，界面上看不出中断
+                h.open = Some(Open {
+                    ssid: o.ssid,
+                    start: o.start,
+                    heartbeat: hb,
+                    lost_at: o.lost_at,
+                });
+            } else {
+                match o.lost_at {
+                    // 退出前已断开：补一段连接区间 + 一段未连接区间
+                    Some(t) => {
+                        let t = t.clamp(o.start, hb);
+                        h.push_closed(o.ssid, o.start, t, true);
+                        h.push_closed(None, t, hb, true);
+                    }
+                    None => h.push_closed(o.ssid, o.start, hb, true),
                 }
-                None => h.push_closed(o.ssid, o.start, hb, true),
             }
         }
         h.prune(now);
@@ -234,11 +252,14 @@ impl History {
         false
     }
 
-    /// 优雅退出：把当前区间正常闭合（不带 `recovered` 标记，不会留下中断痕迹）
-    fn close_open(&mut self, now: i64) {
-        if let Some(o) = self.open.take() {
-            let end = o.lost_at.unwrap_or(now);
-            self.push_closed(o.ssid, o.start, end, false);
+    /// 退出前把心跳推到当前时刻。
+    ///
+    /// 刻意不闭合 `open`：关掉再打开是很常见的操作，闭合会把它切成两段、中间留一段
+    /// 「状态未知」。是否真的断开交给重启时的 [`History::from_disk`] 按宽限期判断。
+    fn mark_exit(&mut self, now: i64) {
+        self.last_now = self.last_now.max(now);
+        if let Some(o) = self.open.as_mut() {
+            o.heartbeat = o.heartbeat.max(now);
         }
     }
 
@@ -446,11 +467,11 @@ pub fn tick() {
     });
 }
 
-/// 优雅退出：闭合当前区间并落盘（正常退出不应被当成崩溃）
+/// 优雅退出：推进心跳后落盘，保留未闭合区间（重启后按 `RECONNECT_GRACE_MS` 决定是否接着记）
 pub fn shutdown() {
     let now = now_ms();
     with_store(|inner| {
-        inner.history.close_open(now);
+        inner.history.mark_exit(now);
         if let Err(e) = inner.save() {
             log::warn!("网络历史退出落盘失败: {e}");
         }
@@ -612,7 +633,34 @@ mod tests {
         assert_eq!(h.open.as_ref().unwrap().ssid.as_deref(), Some("B-WiFi"));
     }
 
-    /// 崩溃恢复：遗留 open 以心跳为右端点补记，且带 recovered 标记
+    /// 重启宽限：距上次上报不超过 RECONNECT_GRACE_MS 就重开，视为没断链——原区间接着记
+    #[test]
+    fn restart_within_grace_keeps_interval_going() {
+        let disk = Disk {
+            version: FORMAT_VERSION,
+            open: Some(Open {
+                ssid: Some("A-WiFi".to_string()),
+                start: 1_000,
+                heartbeat: 60_000,
+                lost_at: None,
+            }),
+            records: vec![],
+        };
+        let now = 60_000 + RECONNECT_GRACE_MS;
+        let mut h = History::from_disk(disk, now);
+        assert!(h.records.is_empty(), "宽限期内重启不应补记区间");
+        assert_eq!(
+            h.open.as_ref().unwrap().start,
+            1_000,
+            "原区间应继续沿用，而不是从重启时刻另起一段"
+        );
+        // 重启后状态没变：继续累积，依然不产生记录
+        h.on_status(now + 1_000, A);
+        assert!(h.records.is_empty());
+        assert_eq!(h.open.as_ref().unwrap().start, 1_000);
+    }
+
+    /// 超过宽限期：遗留 open 以心跳为右端点补记，且带 recovered 标记
     #[test]
     fn recovered_open_is_closed_at_heartbeat() {
         let disk = Disk {
@@ -630,7 +678,7 @@ mod tests {
                 recovered: false,
             }],
         };
-        let h = History::from_disk(disk, 40_000);
+        let h = History::from_disk(disk, 31_000 + RECONNECT_GRACE_MS + 1);
         assert_eq!(
             recs(&h),
             vec![
@@ -638,7 +686,7 @@ mod tests {
                 (Some("A-WiFi".to_string()), 1_000, 31_000),
             ]
         );
-        assert!(h.records[1].recovered, "崩溃补记区间应带 recovered 标记");
+        assert!(h.records[1].recovered, "超期补记区间应带 recovered 标记");
     }
 
     /// 崩溃前已处于「挂起断开」：拆成连接区间 + 未连接区间
@@ -654,7 +702,7 @@ mod tests {
             }),
             records: vec![],
         };
-        let h = History::from_disk(disk, 70_000);
+        let h = History::from_disk(disk, 60_000 + RECONNECT_GRACE_MS + 1);
         assert_eq!(
             recs(&h),
             vec![
@@ -677,38 +725,42 @@ mod tests {
             }),
             records: vec![],
         };
-        let mut h = History::from_disk(disk, 20_000);
-        h.on_status(25_000, A);
-        h.on_status(60_000, B);
+        let mut h = History::from_disk(disk, 10_000 + RECONNECT_GRACE_MS + 1);
+        h.on_status(200_000, A);
+        h.on_status(260_000, B);
         assert_eq!(
             recs(&h),
             vec![
                 (Some("A-WiFi".to_string()), 1_000, 10_000),
-                (Some("A-WiFi".to_string()), 25_000, 60_000),
+                (Some("A-WiFi".to_string()), 200_000, 260_000),
             ],
-            "崩溃前后必须是两条独立记录"
+            "超期补记的那段不能与重启后的同网络区间合并"
         );
     }
 
-    /// 优雅退出：正常闭合，不带 recovered 标记
+    /// 退出：保留未闭合区间，只把心跳推到退出时刻（短时间内重开才接得上）
     #[test]
-    fn graceful_exit_closes_interval_without_recovered_flag() {
+    fn exit_keeps_interval_open_with_advanced_heartbeat() {
         let mut h = History::default();
         h.on_status(1_000, A);
-        h.close_open(9_000);
-        assert_eq!(recs(&h), vec![(Some("A-WiFi".to_string()), 1_000, 9_000)]);
-        assert!(!h.records[0].recovered);
-        assert!(h.open.is_none());
+        h.mark_exit(9_000);
+        assert!(h.records.is_empty(), "退出不应闭合当前区间");
+        let o = h.open.as_ref().unwrap();
+        assert_eq!(o.start, 1_000);
+        assert_eq!(o.heartbeat, 9_000);
     }
 
-    /// 挂起断开期间退出：右端点取断开点，不把「疑似断开」算成在线
+    /// 挂起断开期间退出：挂起状态原样保留，交给重启后的 tick 结算
     #[test]
-    fn graceful_exit_while_pending_uses_disconnect_point() {
+    fn exit_while_pending_keeps_lost_at() {
         let mut h = History::default();
         h.on_status(1_000, A);
         h.on_status(4_000, None);
-        h.close_open(9_000);
-        assert_eq!(recs(&h), vec![(Some("A-WiFi".to_string()), 1_000, 4_000)]);
+        h.mark_exit(9_000);
+        assert!(h.records.is_empty());
+        let o = h.open.as_ref().unwrap();
+        assert_eq!(o.lost_at, Some(4_000));
+        assert_eq!(o.heartbeat, 9_000);
     }
 
     /// 清空：记录清掉，当前连接继续沿用
@@ -821,8 +873,9 @@ mod tests {
             "未闭合区间应随心跳一并持久化"
         );
 
-        // 恢复后：1 条已闭合 + 1 条心跳补记
-        let restored = History::from_disk(disk, 5_000 + HEARTBEAT_MS + 1_000);
+        // 超过重启宽限期再恢复：1 条已闭合 + 1 条按心跳补记
+        let restored =
+            History::from_disk(disk, 5_000 + HEARTBEAT_MS + RECONNECT_GRACE_MS + 1_000);
         assert_eq!(recs(&restored).len(), 2);
 
         // 半截 JSON / 缺失文件：按空历史处理
