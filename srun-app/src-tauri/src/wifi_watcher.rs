@@ -54,6 +54,8 @@ unsafe extern "system" fn on_wlan_notification(
         let status = tauri::async_runtime::spawn_blocking(crate::wifi::current_status)
             .await
             .unwrap_or_default();
+        // 网络历史埋点：状态机自行去重（同网络重复通知不产生记录），写入量极小
+        crate::network_history::on_status(status.ssid.as_deref());
         let _ = app.emit("wifi-changed", status);
     });
 }
@@ -69,7 +71,7 @@ pub fn start(app: &tauri::App) {
         // Windows 8+ 由 WlanOpenHandle 内部完成 CoInitializeEx(MTA)，此处无需自行初始化；
         // 返回 0 表示 ERROR_SUCCESS
         if WlanOpenHandle(2, None, &mut negotiated, &mut handle) != 0 {
-            eprintln!("[wifi_watcher] WlanOpenHandle 失败，WiFi 变动监听不可用");
+            log::warn!("wifi_watcher: WlanOpenHandle 失败，WiFi 变动监听不可用");
             WATCHER_STARTED.store(false, Ordering::SeqCst);
             return;
         }
@@ -87,7 +89,7 @@ pub fn start(app: &tauri::App) {
             None,
         );
         if result != 0 {
-            eprintln!("[wifi_watcher] WlanRegisterNotification 失败，WiFi 变动监听不可用");
+            log::warn!("wifi_watcher: WlanRegisterNotification 失败，WiFi 变动监听不可用");
             drop(Box::from_raw(ctx));
             WATCHER_STARTED.store(false, Ordering::SeqCst);
             return;

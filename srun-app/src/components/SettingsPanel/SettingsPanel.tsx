@@ -31,7 +31,13 @@ import {
   WifiMode,
   writeSetting,
 } from "@/domain/settings";
-import { IconCheck, IconClose, IconEye, IconEyeOff } from "@/components/icons/Icons";
+import {
+  IconCheck,
+  IconClose,
+  IconEye,
+  IconEyeOff,
+  IconFolder,
+} from "@/components/icons/Icons";
 import "./SettingsPanel.css";
 
 const THEME_OPTIONS: { value: ThemeMode; label: string; desc: string }[] = [
@@ -302,6 +308,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
   const [showPwd, setShowPwd] = useState(false);
   const [silentStart, setSilentStart] = useState(true);
   const [wifiMode, setWifiMode] = useState<WifiMode>("auto");
+  const [openingLogDir, setOpeningLogDir] = useState(false);
 
   // 打开抽屉时载入已保存的值，并查询开机自启动状态
   useEffect(() => {
@@ -352,6 +359,20 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
     onToast(
       ok ? (next ? "已开启静默启动" : "已关闭静默启动") : "保存失败：本地存储不可用",
     );
+  }
+
+  /// 一键打开日志目录：成功后提示路径，便于直接取 srun.log 反馈
+  async function openLogDir() {
+    if (openingLogDir) return;
+    setOpeningLogDir(true);
+    try {
+      const dir = await invoke<string>("open_log_dir");
+      onToast(`已打开日志目录：${dir}`);
+    } catch (err) {
+      onToast(`打开日志目录失败：${String(err)}`);
+    } finally {
+      setOpeningLogDir(false);
+    }
   }
 
   function isDirty(f: TextFieldDef): boolean {
@@ -545,6 +566,21 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
                 ))}
               </div>
             </div>
+          </section>
+          <section className="settings-section">
+            <h3 className="settings-section__title">日志</h3>
+            <p className="settings-section__desc">
+              打开本机日志目录
+            </p>
+            <button
+              type="button"
+              className="settings-btn"
+              onClick={() => void openLogDir()}
+              disabled={openingLogDir}
+            >
+              <IconFolder size={15} />
+              {openingLogDir ? "正在打开…" : "打开日志目录"}
+            </button>
           </section>
         </div>
       </aside>

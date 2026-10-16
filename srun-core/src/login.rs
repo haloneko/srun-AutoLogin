@@ -173,10 +173,12 @@ pub async fn login_ex(
     password: &str,
     options: &SrunLoginOptions,
 ) -> Result<Value> {
+    log::info!("登录开始: username={username}");
     let http = SrunHttp::with_base_url_and_ua(&options.base_url, &options.user_agent)?;
     let user_info = user::get_user_info(&http).await?;
     let ip = extract_ip(&user_info);
     if ip.is_empty() {
+        log::warn!("登录失败: 未获取到 IP（username={username}）");
         return Err(SrunError::MissingField("client_ip/online_ip"));
     }
     let challenge_val = challenge::get_challenge(&http, username, &ip).await?;
@@ -198,6 +200,15 @@ pub async fn login_ex(
         .map(|(k, v)| (k.as_str(), v.clone()))
         .collect();
     let res = user::portal(&http, &owned).await?;
+    let error = res
+        .get("error")
+        .and_then(|v| v.as_str())
+        .unwrap_or("<无 error 字段>");
+    if error == "ok" {
+        log::info!("登录成功: username={username}, ip={ip}");
+    } else {
+        log::warn!("登录被网关拒绝: username={username}, error={error}");
+    }
     Ok(res)
 }
 

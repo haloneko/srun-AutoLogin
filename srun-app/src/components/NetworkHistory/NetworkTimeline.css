@@ -1,0 +1,280 @@
+/* ===== 网络使用时间线（独立大窗口视图） ===== */
+.nt-root {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== 工具条：日期下拉 + 当前视窗 + 当天记录情况 ===== */
+.nt-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.nt-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.nt-range__select {
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.nt-range__select:hover,
+.nt-range__select:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* 当前显示的时间段：缩放 / 平移后一眼看出在看哪一段 */
+.nt-toolbar__span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nt-toolbar__meta {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ===== 唯一的一条时间条：底色＝状态未知（应用未运行） ===== */
+.nt-track {
+  position: relative;
+  height: 64px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: color-mix(in srgb, var(--muted) 10%, transparent);
+  overflow: hidden;
+}
+
+/* 放大之后可以拖拽平移，给个抓手光标提示 */
+.nt-track--pannable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.nt-track--pannable:active {
+  cursor: grabbing;
+}
+
+/* 刻度竖线：细分线一条，带标签的主刻度一条加深 */
+.nt-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.nt-grid > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+}
+
+.nt-grid > .nt-grid__major {
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+}
+
+/* 「今天」还没走到的时段：比「状态未知」更接近底色，
+   免得被误读成「应用一整天没运行」 */
+.nt-future {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  border-left: 1px dashed color-mix(in srgb, var(--muted) 45%, transparent);
+}
+
+.nt-track__empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ===== 时间条区段 ===== */
+.nt-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* 极短区段（几秒的切换）也要看得见；右端 1px 缝隙由内联 width 的 calc 让出，
+     相邻区段才不会被糊成一坨 */
+  min-width: 2px;
+  border-radius: 4px;
+  transition: filter 0.15s, box-shadow 0.15s;
+}
+
+.nt-seg:hover {
+  z-index: 1;
+  filter: brightness(1.12);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--card) 75%, transparent);
+}
+
+/* ===== 配色：时间条与累计卡片共用 ===== */
+.nt-seg--off,
+.nt-swatch--off {
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+}
+
+.nt-seg--c0,
+.nt-swatch--c0 {
+  background: #1e88e5;
+}
+
+.nt-seg--c1,
+.nt-swatch--c1 {
+  background: #16a34a;
+}
+
+.nt-seg--c2,
+.nt-swatch--c2 {
+  background: #d97706;
+}
+
+.nt-seg--c3,
+.nt-swatch--c3 {
+  background: #8b5cf6;
+}
+
+.nt-seg--c4,
+.nt-swatch--c4 {
+  background: #0891b2;
+}
+
+.nt-seg--c5,
+.nt-swatch--c5 {
+  background: #db2777;
+}
+
+/* ===== 刻度标签：与时间条同宽，标签中心对齐刻度线 ===== */
+.nt-ticks {
+  position: relative;
+  height: 15px;
+  margin-top: 7px;
+}
+
+.nt-ticks > span {
+  position: absolute;
+  top: 0;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* ===== 平移滑动条：只在放大后出现；平时也占着高度，免得下方内容跳动 ===== */
+.nt-pan {
+  display: flex;
+  align-items: center;
+  height: 20px;
+  margin-top: 6px;
+}
+
+.nt-pan__slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ===== 累计卡片 ===== */
+.nt-totals {
+  margin-top: 28px;
+}
+
+.nt-totals__title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.nt-totals__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.nt-card {
+  padding: 12px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.nt-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nt-swatch {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.nt-card__name {
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nt-card__tag {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(30, 136, 229, 0.12);
+  border-radius: 999px;
+}
+
+.nt-card__time {
+  margin-top: 8px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.nt-card__meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.nt-card__bar {
+  margin-top: 10px;
+  height: 6px;
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.nt-card__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}

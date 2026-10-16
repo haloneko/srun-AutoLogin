@@ -70,6 +70,7 @@ pub async fn get_online_status(http: &SrunHttp) -> Result<OnlineStatus> {
     let error = value_as_str(info.get("error"));
     let username = extract_username(&info);
     let online = error == "ok" || !username.is_empty();
+    log::debug!("状态查询: online={online}, username={username}");
     Ok(OnlineStatus {
         online,
         username,

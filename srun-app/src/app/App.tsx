@@ -4,7 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import HeroButton from "@/components/HeroButton/HeroButton";
 import SettingsPanel from "@/components/SettingsPanel/SettingsPanel";
-import { IconClose, IconGear, IconRefresh } from "@/components/icons/Icons";
+import ToastStack from "@/components/Toast/ToastStack";
+import { IconGear, IconRefresh, IconTimeline } from "@/components/icons/Icons";
 import { useNetwork } from "@/hooks/useNetwork";
 import { useToasts } from "@/hooks/useToasts";
 import {
@@ -67,11 +68,29 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /// 打开独立的「网络使用历史」窗口（已打开则唤起并聚焦）
+  async function openHistory() {
+    try {
+      await invoke("open_history_window");
+    } catch (err) {
+      showToast(`打开历史窗口失败：${String(err)}`);
+    }
+  }
+
   const online = info?.online;
 
   return (
     <div className="shell">
       <div className="topbar">
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => void openHistory()}
+          title="网络使用历史"
+          aria-label="网络使用历史"
+        >
+          <IconTimeline size={20} />
+        </button>
         <button
           type="button"
           className="icon-btn"
@@ -92,24 +111,7 @@ export default function App() {
           <IconRefresh size={20} />
         </button>
       </div>
-      {toasts.length > 0 && (
-        <div className="toast-stack" role="status" aria-live="polite">
-          {toasts.map((t) => (
-            <div key={t.id} className="toast">
-              <span className="toast__msg">{t.msg}</span>
-              <button
-                type="button"
-                className="toast__close"
-                onClick={() => dismissToast(t.id)}
-                aria-label="关闭通知"
-              >
-                <IconClose size={12} />
-              </button>
-              <span className="toast__progress" aria-hidden />
-            </div>
-          ))}
-        </div>
-      )}
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       <SettingsPanel
         open={settingsOpen}

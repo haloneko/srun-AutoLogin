@@ -71,6 +71,42 @@ export function IconCheck(props: IconProps) {
   );
 }
 
+/// 时间线 / 历史（表盘 + 刻度）
+export function IconTimeline(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 3" />
+      <path d="M4.5 16.5 7 14" />
+      <path d="M19.5 16.5 17 14" />
+      <path d="M4.5 7.5 7 10" />
+      <path d="M19.5 7.5 17 10" />
+    </SvgIcon>
+  );
+}
+
+/// 清空（垃圾桶）
+export function IconTrash(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M3 6h18" />
+      <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+    </SvgIcon>
+  );
+}
+
+/// 目录（文件夹）
+export function IconFolder(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+    </SvgIcon>
+  );
+}
+
 /// 显示密码（眼睛）
 export function IconEye(props: IconProps) {
   return (
