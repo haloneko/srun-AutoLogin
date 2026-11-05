@@ -1,16 +1,29 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { HISTORY_DAYS } from "@/domain/networkHistory";
 import type { NetworkSegment } from "@/common/types";
 
+const LIVE_TICK_MS = 1_000;
+const ONGOING_TOLERANCE_MS = 10_000;
+
 export interface NetworkHistoryApi {
-  /// 近 `HISTORY_DAYS` 天的网络区间（时间正序）
   segments: NetworkSegment[];
-  /// 首次拉取中（刷新时不置位，避免时间线闪空）
   loading: boolean;
   reload: () => Promise<void>;
   clear: () => Promise<void>;
+}
+
+function hasOngoing(list: NetworkSegment[], syncedAt: number): boolean {
+  const last = list[list.length - 1];
+  if (!last || last.recovered) return false;
+  return syncedAt - last.end <= ONGOING_TOLERANCE_MS;
+}
+
+function advanceOngoing(list: NetworkSegment[], now: number): NetworkSegment[] {
+  const last = list[list.length - 1];
+  if (!last || last.end >= now) return list;
+  return [...list.slice(0, -1), { ...last, end: now }];
 }
 
 /// 网络使用历史：拉取后端记录的区间，并在网络变动（wifi-changed）后自动刷新。
@@ -18,7 +31,9 @@ export interface NetworkHistoryApi {
 /// `wifi-changed` 只当触发器用，数据一律以后端查询结果为准；
 /// 面板未打开时也会保留订阅，打开即为最新数据。
 export function useNetworkHistory(onToast: (msg: string) => void): NetworkHistoryApi {
-  const [segments, setSegments] = useState<NetworkSegment[]>([]);
+  const [data, setData] = useState<NetworkSegment[]>([]);
+  const [syncedAt, setSyncedAt] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
@@ -26,7 +41,9 @@ export function useNetworkHistory(onToast: (msg: string) => void): NetworkHistor
       const list = await invoke<NetworkSegment[]>("network_history_get", {
         days: HISTORY_DAYS,
       });
-      setSegments(list);
+      setData(list);
+      setSyncedAt(Date.now());
+      setNow(Date.now());
     } catch {
       /* 查询失败保持上一次数据 */
     } finally {
@@ -58,6 +75,18 @@ export function useNetworkHistory(onToast: (msg: string) => void): NetworkHistor
     });
     return () => unlisten?.();
   }, [reload]);
+
+  const ongoing = useMemo(() => hasOngoing(data, syncedAt), [data, syncedAt]);
+  useEffect(() => {
+    if (!ongoing) return;
+    const id = window.setInterval(() => setNow(Date.now()), LIVE_TICK_MS);
+    return () => window.clearInterval(id);
+  }, [ongoing]);
+
+  const segments = useMemo(
+    () => (ongoing ? advanceOngoing(data, now) : data),
+    [ongoing, data, now],
+  );
 
   return { segments, loading, reload, clear };
 }

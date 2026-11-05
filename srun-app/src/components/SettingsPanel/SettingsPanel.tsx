@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   AC_ID_KEY,
-  applyTheme,
   BASE64_ALPHA_KEY,
   BASE_URL_KEY,
   DEFAULT_AC_ID,
@@ -22,7 +21,6 @@ import {
   STARTUP_MODE_KEY,
   StartupMode,
   ThemeMode,
-  THEME_KEY,
   USERNAME_KEY,
   USER_AGENT_KEY,
   WIFI_MODE_KEY,
@@ -38,6 +36,8 @@ import {
   IconEyeOff,
   IconFolder,
 } from "@/components/icons/Icons";
+import { Field, OptionGroup, Switch } from "@/components/ui/Controls";
+import { changeTheme } from "@/hooks/useThemeSync";
 import "./SettingsPanel.css";
 
 const THEME_OPTIONS: { value: ThemeMode; label: string; desc: string }[] = [
@@ -65,8 +65,19 @@ const WIFI_OPTIONS: { value: WifiMode; label: string; desc: string }[] = [
   },
 ];
 
+/// 左侧导航：与右侧各区段的 id 一一对应，点击滚动到对应区段
+const NAV: { id: string; label: string }[] = [
+  { id: "account", label: "账号" },
+  { id: "server", label: "认证服务器" },
+  { id: "wifi", label: "WiFi 自动连接" },
+  { id: "behavior", label: "启动与行为" },
+  { id: "appearance", label: "外观" },
+  { id: "logs", label: "日志" },
+  { id: "advanced", label: "高级参数" },
+];
+
 /// 一个「文本输入 + 确认/撤销」型设置项的声明式定义。
-/// 新增此类设置项：在此数组加一行 + 在 `SECTIONS` 里挂到对应分组即可。
+/// 新增此类设置项：在此数组加一行 + 在下面某个区段里挂上 key 即可。
 interface TextFieldDef {
   key: string;
   label: string;
@@ -127,7 +138,7 @@ const TEXT_FIELDS: TextFieldDef[] = [
   },
   {
     key: WIFI_SSID_KEY,
-    label: "自动连接 WiFi (SSID)",
+    label: "校园网 SSID",
     hint: "留空使用默认",
     placeholder: DEFAULT_WIFI_SSID,
     defaultValue: "",
@@ -194,30 +205,6 @@ const FIELD_BY_KEY: Record<string, TextFieldDef> = Object.fromEntries(
   TEXT_FIELDS.map((f) => [f.key, f]),
 );
 
-/// 文本字段分组（渲染顺序即数组顺序）；特殊控件（开关/单选）独立 section 手写
-const SECTIONS: { title: string; desc: string; keys: string[] }[] = [
-  {
-    title: "账号",
-    desc: "用于校园网认证，仅保存在本机。",
-    keys: [USERNAME_KEY, PASSWORD_KEY],
-  },
-  {
-    title: "认证服务器",
-    desc: "深澜网关地址与请求头，留空即使用默认值。",
-    keys: [BASE_URL_KEY, USER_AGENT_KEY],
-  },
-  {
-    title: "WiFi 自动连接",
-    desc: "开机静默启动后自动连接校园 WiFi，SSID 留空使用默认，密码留空表示无密码。",
-    keys: [WIFI_SSID_KEY, WIFI_PASSWORD_KEY],
-  },
-  {
-    title: "高级设置",
-    desc: "深澜网关兼容参数，留空即使用默认值；仅适配其他学校网关时修改。",
-    keys: [AC_ID_KEY, ENC_VER_KEY, BASE64_ALPHA_KEY],
-  },
-];
-
 interface SettingTextFieldProps {
   field: TextFieldDef;
   value: string;
@@ -229,7 +216,7 @@ interface SettingTextFieldProps {
   onTogglePwd: () => void;
 }
 
-/// 通用「输入框 + ✓/✕ 确认撤销」字段组件，由声明式注册表驱动
+/// 通用「输入框 + ✓/✕ 确认撤销」字段，由声明式注册表驱动
 function SettingTextField({
   field,
   value,
@@ -241,63 +228,57 @@ function SettingTextField({
   onTogglePwd,
 }: SettingTextFieldProps) {
   return (
-    <label className="settings-field">
-      <span className="settings-field__label">
-        {field.label}
-        {field.hint && <span className="settings-field__hint">{field.hint}</span>}
-      </span>
-      <span className="settings-field__row">
-        <input
-          className="settings-field__input"
-          type={field.secret ? (showPwd ? "text" : "password") : "text"}
-          value={value}
-          onChange={(e) => onChange(field.key, e.target.value)}
-          placeholder={field.placeholder}
-          spellCheck={false}
-          autoComplete={field.autoComplete}
-        />
-        {field.secret && (
+    <Field label={field.label} hint={field.hint} inline>
+      <input
+        className="settings-input"
+        type={field.secret ? (showPwd ? "text" : "password") : "text"}
+        value={value}
+        onChange={(e) => onChange(field.key, e.target.value)}
+        placeholder={field.placeholder}
+        spellCheck={false}
+        autoComplete={field.autoComplete}
+        aria-label={field.label}
+      />
+      {field.secret && (
+        <button
+          type="button"
+          className="settings-input__btn"
+          onClick={onTogglePwd}
+          aria-label={showPwd ? "隐藏密码" : "显示密码"}
+        >
+          {showPwd ? <IconEyeOff size={15} /> : <IconEye size={15} />}
+        </button>
+      )}
+      {dirty && (
+        <span className="settings-input__actions">
           <button
             type="button"
-            className="settings-field__eye"
-            onClick={onTogglePwd}
-            aria-label={showPwd ? "隐藏密码" : "显示密码"}
+            className="settings-input__btn settings-input__btn--ok"
+            onClick={onConfirm}
+            aria-label={`确认保存${field.label}`}
           >
-            {showPwd ? <IconEyeOff size={15} /> : <IconEye size={15} />}
+            <IconCheck size={15} />
           </button>
-        )}
-        {dirty && (
-          <span className="settings-field__actions">
-            <button
-              type="button"
-              className="settings-field__confirm"
-              onClick={onConfirm}
-              aria-label={`确认保存${field.label}`}
-            >
-              <IconCheck size={15} />
-            </button>
-            <button
-              type="button"
-              className="settings-field__cancel"
-              onClick={onCancel}
-              aria-label={`撤销${field.label}修改`}
-            >
-              <IconClose size={15} />
-            </button>
-          </span>
-        )}
-      </span>
-    </label>
+          <button
+            type="button"
+            className="settings-input__btn"
+            onClick={onCancel}
+            aria-label={`撤销${field.label}修改`}
+          >
+            <IconClose size={15} />
+          </button>
+        </span>
+      )}
+    </Field>
   );
 }
 
 interface SettingsPanelProps {
-  open: boolean;
-  onClose: () => void;
   onToast: (msg: string) => void;
 }
 
-export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelProps) {
+/// 设置项主体：左侧分类导航 + 右侧表单，窗口外壳由 `SettingsWindow` 提供。
+export default function SettingsPanel({ onToast }: SettingsPanelProps) {
   /// 所有文本字段的当前编辑值 / 「已保存」基线，以 localStorage key 为索引
   const [values, setValues] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, string>>({});
@@ -309,10 +290,10 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
   const [silentStart, setSilentStart] = useState(true);
   const [wifiMode, setWifiMode] = useState<WifiMode>("auto");
   const [openingLogDir, setOpeningLogDir] = useState(false);
+  const [active, setActive] = useState(NAV[0].id);
 
-  // 打开抽屉时载入已保存的值，并查询开机自启动状态
+  // 窗口打开时载入已保存的值，并查询开机自启动状态
   useEffect(() => {
-    if (!open) return;
     const loaded: Record<string, string> = {};
     for (const f of TEXT_FIELDS) loaded[f.key] = readSetting(f.key) || f.defaultValue;
     setValues(loaded);
@@ -325,17 +306,7 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
     invoke<boolean>("autostart_enabled")
       .then(setAutostart)
       .catch(() => setAutostart(false));
-  }, [open]);
-
-  // Esc 关闭
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, []);
 
   async function toggleAutostart(next: boolean) {
     if (autostartLoading) return;
@@ -399,179 +370,146 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
     onToast(f.saveMsg(v));
   }
 
-  if (!open) return null;
+  /// 点击导航：滚动到对应区段（滚动容器是窗口主体）
+  function goTo(id: string) {
+    setActive(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  /// 按注册表渲染一组文本字段
+  function renderFields(keys: string[]) {
+    return keys.map((key) => {
+      const f = FIELD_BY_KEY[key];
+      return (
+        <SettingTextField
+          key={key}
+          field={f}
+          value={values[f.key] ?? ""}
+          dirty={isDirty(f)}
+          showPwd={showPwd}
+          onChange={(k, v) => setValues((prev) => ({ ...prev, [k]: v }))}
+          onConfirm={() => confirmField(f)}
+          onCancel={() => setValues((prev) => ({ ...prev, [f.key]: saved[f.key] ?? "" }))}
+          onTogglePwd={() => setShowPwd((v) => !v)}
+        />
+      );
+    });
+  }
 
   return (
-    <div className="settings-overlay" onClick={onClose}>
-      <aside
-        className="settings-drawer"
-        role="dialog"
-        aria-label="设置"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="settings-drawer__header">
-          <h2 className="settings-drawer__title">设置</h2>
+    <div className="settings-layout">
+      <nav className="settings-nav" aria-label="设置分类">
+        {NAV.map((item) => (
           <button
+            key={item.id}
             type="button"
-            className="settings-drawer__close"
-            onClick={onClose}
-            aria-label="关闭设置"
+            className={`settings-nav__item${active === item.id ? " settings-nav__item--on" : ""}`}
+            onClick={() => goTo(item.id)}
           >
-            <IconClose size={13} />
+            {item.label}
           </button>
-        </header>
+        ))}
+      </nav>
 
-        <div className="settings-drawer__body">
-          {SECTIONS.map((section) => (
-            <section key={section.title} className="settings-section">
-              <h3 className="settings-section__title">{section.title}</h3>
-              <p className="settings-section__desc">{section.desc}</p>
-              {section.keys.map((key) => {
-                const f = FIELD_BY_KEY[key];
-                return (
-                  <SettingTextField
-                    key={key}
-                    field={f}
-                    value={values[f.key] ?? ""}
-                    dirty={isDirty(f)}
-                    showPwd={showPwd}
-                    onChange={(k, v) => setValues((prev) => ({ ...prev, [k]: v }))}
-                    onConfirm={() => confirmField(f)}
-                    onCancel={() =>
-                      setValues((prev) => ({ ...prev, [f.key]: saved[f.key] ?? "" }))
-                    }
-                    onTogglePwd={() => setShowPwd((v) => !v)}
-                  />
-                );
-              })}
-            </section>
-          ))}
+      <div className="settings-panes">
+        <section className="settings-section" id="account">
+          <h2 className="settings-section__title">账号</h2>
+          <p className="settings-section__desc">用于校园网认证，仅保存在本机。</p>
+          {renderFields([USERNAME_KEY, PASSWORD_KEY])}
+        </section>
 
-          <section className="settings-section">
-            <h3 className="settings-section__title">通用</h3>
-            <div className="settings-field settings-field--row">
-              <span className="settings-field__label">
-                开机自启动
-                <span className="settings-field__hint">开机后自动运行本程序</span>
-              </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={autostart}
-                className={`settings-switch${autostart ? " settings-switch--on" : ""}`}
-                onClick={() => void toggleAutostart(!autostart)}
-              >
-                <span className="settings-switch__knob" />
-              </button>
-            </div>
-            <div className="settings-field settings-field--row">
-              <span className="settings-field__label">
-                静默启动
-                <span className="settings-field__hint">
-                  启动后隐藏主窗口，仅驻留系统托盘（默认开启）
-                </span>
-              </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={silentStart}
-                className={`settings-switch${silentStart ? " settings-switch--on" : ""}`}
-                onClick={() => toggleSilentStart(!silentStart)}
-              >
-                <span className="settings-switch__knob" />
-              </button>
-            </div>
-            <div className="settings-field">
-              <span className="settings-field__label">启动时行为</span>
-              <div className="settings-options">
-                {STARTUP_OPTIONS.map((o) => (
-                  <label
-                    key={o.value}
-                    className={`settings-option${startupMode === o.value ? " settings-option--on" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="startup-mode"
-                      className="settings-option__radio"
-                      checked={startupMode === o.value}
-                      onChange={() => {
-                        setStartupMode(o.value);
-                        writeSetting(STARTUP_MODE_KEY, o.value);
-                        onToast(`启动行为已设为「${o.label}」`);
-                      }}
-                    />
-                    <span className="settings-option__label">{o.label}</span>
-                    <span className="settings-option__desc">{o.desc}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="settings-field">
-              <span className="settings-field__label">
-                自动连接 WiFi
-                <span className="settings-field__hint">
-                  开机后按以下策略连接校园网 WiFi
-                </span>
-              </span>
-              <div className="settings-options">
-                {WIFI_OPTIONS.map((o) => (
-                  <label
-                    key={o.value}
-                    className={`settings-option${wifiMode === o.value ? " settings-option--on" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="wifi-mode"
-                      className="settings-option__radio"
-                      checked={wifiMode === o.value}
-                      onChange={() => {
-                        setWifiMode(o.value);
-                        writeSetting(WIFI_MODE_KEY, o.value);
-                        onToast(`WiFi 自动连接已设为「${o.label}」`);
-                      }}
-                    />
-                    <span className="settings-option__label">{o.label}</span>
-                    <span className="settings-option__desc">{o.desc}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </section>
+        <section className="settings-section" id="server">
+          <h2 className="settings-section__title">认证服务器</h2>
+          <p className="settings-section__desc">深澜网关地址与请求头，留空即使用默认值。</p>
+          {renderFields([BASE_URL_KEY, USER_AGENT_KEY])}
+        </section>
 
-          <section className="settings-section">
-            <h3 className="settings-section__title">外观</h3>
-            <div className="settings-field">
-              <span className="settings-field__label">主题</span>
-              <div className="settings-options">
-                {THEME_OPTIONS.map((o) => (
-                  <label
-                    key={o.value}
-                    className={`settings-option${theme === o.value ? " settings-option--on" : ""}`}
-                  >
-                    <input
-                      type="radio"
-                      name="theme-mode"
-                      className="settings-option__radio"
-                      checked={theme === o.value}
-                      onChange={() => {
-                        setTheme(o.value);
-                        writeSetting(THEME_KEY, o.value);
-                        applyTheme(o.value);
-                        onToast(`主题已切换为「${o.label}」`);
-                      }}
-                    />
-                    <span className="settings-option__label">{o.label}</span>
-                    <span className="settings-option__desc">{o.desc}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </section>
-          <section className="settings-section">
-            <h3 className="settings-section__title">日志</h3>
-            <p className="settings-section__desc">
-              打开本机日志目录
-            </p>
+        <section className="settings-section" id="wifi">
+          <h2 className="settings-section__title">WiFi 自动连接</h2>
+          <p className="settings-section__desc">
+            开机静默启动后自动连接校园 WiFi；SSID 留空使用默认，密码留空表示无密码。
+          </p>
+          {renderFields([WIFI_SSID_KEY, WIFI_PASSWORD_KEY])}
+        </section>
+
+        <section className="settings-section" id="behavior">
+          <h2 className="settings-section__title">启动与行为</h2>
+          <p className="settings-section__desc">开机后如何运行、以及连上网络后如何登录。</p>
+
+          <Field label="开机自启动" hint="开机后自动运行本程序" inline>
+            <Switch
+              checked={autostart}
+              label="开机自启动"
+              disabled={autostartLoading}
+              onChange={(next) => void toggleAutostart(next)}
+            />
+          </Field>
+
+          <Field label="静默启动" hint="启动后隐藏主窗口，仅驻留系统托盘" inline>
+            <Switch
+              checked={silentStart}
+              label="静默启动"
+              onChange={(next) => toggleSilentStart(next)}
+            />
+          </Field>
+
+          {/* 选项组纵向排布：三张卡片需要横向空间，跟标签挤一行会被压扁 */}
+          <Field label="启动时行为" hint="打开软件后是否自动登录">
+            <OptionGroup
+              name="startup-mode"
+              value={startupMode}
+              options={STARTUP_OPTIONS}
+              onChange={(next) => {
+                setStartupMode(next as StartupMode);
+                writeSetting(STARTUP_MODE_KEY, next);
+                const label = STARTUP_OPTIONS.find((o) => o.value === next)?.label ?? next;
+                onToast(`启动行为已设为「${label}」`);
+              }}
+            />
+          </Field>
+
+          <Field label="自动连接 WiFi" hint="连上校园网 WiFi 的策略">
+            <OptionGroup
+              name="wifi-mode"
+              value={wifiMode}
+              options={WIFI_OPTIONS}
+              columns={2}
+              onChange={(next) => {
+                setWifiMode(next as WifiMode);
+                writeSetting(WIFI_MODE_KEY, next);
+                const label = WIFI_OPTIONS.find((o) => o.value === next)?.label ?? next;
+                onToast(`WiFi 自动连接已设为「${label}」`);
+              }}
+            />
+          </Field>
+        </section>
+
+        <section className="settings-section" id="appearance">
+          <h2 className="settings-section__title">外观</h2>
+          <p className="settings-section__desc">主窗口、历史窗口与设置窗口共用同一套主题。</p>
+
+          <Field label="主题">
+            <OptionGroup
+              name="theme-mode"
+              value={theme}
+              options={THEME_OPTIONS}
+              onChange={(next) => {
+                setTheme(next as ThemeMode);
+                // 保存 + 本窗口立即生效 + 广播给主窗口与历史窗口
+                void changeTheme(next as ThemeMode);
+                const label = THEME_OPTIONS.find((o) => o.value === next)?.label ?? next;
+                onToast(`主题已切换为「${label}」`);
+              }}
+            />
+          </Field>
+        </section>
+
+        <section className="settings-section" id="logs">
+          <h2 className="settings-section__title">日志</h2>
+          <p className="settings-section__desc">
+            运行日志落盘在本机，单文件 5MB 自动轮转，排查问题时可直接取用。
+          </p>
+          <Field label="日志目录" hint="在文件管理器中打开" inline>
             <button
               type="button"
               className="settings-btn"
@@ -581,9 +519,17 @@ export default function SettingsPanel({ open, onClose, onToast }: SettingsPanelP
               <IconFolder size={15} />
               {openingLogDir ? "正在打开…" : "打开日志目录"}
             </button>
-          </section>
-        </div>
-      </aside>
+          </Field>
+        </section>
+
+        <section className="settings-section" id="advanced">
+          <h2 className="settings-section__title">高级参数</h2>
+          <p className="settings-section__desc">
+            深澜网关兼容参数，留空即使用默认值；仅在适配其他学校网关时修改。
+          </p>
+          {renderFields([AC_ID_KEY, ENC_VER_KEY, BASE64_ALPHA_KEY])}
+        </section>
+      </div>
     </div>
   );
 }

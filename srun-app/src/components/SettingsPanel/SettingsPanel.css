@@ -1,355 +1,158 @@
-/* ===== 设置抽屉（右侧滑出 + 遮罩） ===== */
-.settings-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(2px);
-  animation: settings-fade 0.2s ease;
+/* ===== 设置：左导航 + 右表单（宽窗口布局） ===== */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 152px minmax(0, 1fr);
+  gap: 26px;
+  align-items: start;
 }
 
-.settings-drawer {
-  position: absolute;
+/* ---- 左侧分类导航 ---- */
+.settings-nav {
+  position: sticky;
   top: 0;
-  right: 0;
-  height: 100%;
-  width: min(360px, 100vw);
   display: flex;
   flex-direction: column;
-  background: var(--card);
-  border-left: 1px solid var(--border);
-  box-shadow: -16px 0 40px rgba(0, 0, 0, 0.18);
-  animation: settings-slide 0.26s cubic-bezier(0.21, 1.02, 0.73, 1);
+  gap: 2px;
+  padding-top: 2px;
 }
 
-@keyframes settings-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes settings-slide {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-.settings-drawer__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 18px 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-.settings-drawer__title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.settings-drawer__close {
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  line-height: 1;
+.settings-nav__item {
+  padding: 7px 11px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
   color: var(--text-2);
   background: transparent;
   border: none;
-  border-radius: 50%;
+  border-radius: 7px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 
-.settings-drawer__close:hover {
+.settings-nav__item:hover {
   color: var(--text-1);
-  background: rgba(0, 0, 0, 0.06);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 
-.settings-drawer__body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px 18px 12px;
+.settings-nav__item--on {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
 }
 
-/* ===== 分区 ===== */
+/* ---- 右侧区段 ---- */
 .settings-section {
-  padding: 14px 0;
+  padding-bottom: 20px;
+  /* 点击导航滚动定位时，别把标题贴到窗口边缘 */
+  scroll-margin-top: 2px;
 }
 
 .settings-section + .settings-section {
+  margin-top: 4px;
+  padding-top: 20px;
   border-top: 1px solid var(--border);
 }
 
 .settings-section__title {
-  margin: 0 0 4px;
-  font-size: 14px;
+  margin: 0 0 3px;
+  font-size: 14.5px;
   font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .settings-section__desc {
   margin: 0 0 12px;
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11.5px;
+  line-height: 1.55;
   color: var(--muted);
 }
 
-/* ===== 表单字段 ===== */
-.settings-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.settings-field:first-of-type {
-  margin-top: 0;
-}
-
-.settings-field--row {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.settings-field__label {
-  font-size: 13px;
-  font-weight: 600;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.settings-field__hint {
-  font-size: 11px;
-  font-weight: 400;
-  color: var(--muted);
-}
-
-.settings-field__row {
-  display: flex;
-  gap: 8px;
-}
-
-.settings-field__input {
+/* ---- 文本输入 ---- */
+.settings-input {
   flex: 1;
   min-width: 0;
-  padding: 9px 12px;
-  font-size: 14px;
+  padding: 8px 11px;
+  font-size: 13px;
   color: var(--text);
-  background: var(--bg);
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 8px;
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
-.settings-field__input:focus {
+.settings-input::placeholder {
+  color: color-mix(in srgb, var(--muted) 75%, transparent);
+}
+
+.settings-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
-.settings-field__eye {
-  width: 40px;
-  flex-shrink: 0;
-  font-size: 15px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-
-.settings-field__eye:hover {
-  border-color: var(--accent);
-}
-
-/* ===== 输入框行内确认 / 撤销（✓ ✕） ===== */
-.settings-field__actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.settings-field__confirm,
-.settings-field__cancel {
-  width: 40px;
-  height: 40px; /* 与输入框等高 */
+/* 输入框右侧的图标按钮（眼睛 / 确认 / 撤销） */
+.settings-input__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
-  line-height: 1;
-  color: var(--text-2);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px; /* 与输入框圆角一致 */
-  cursor: pointer;
-  transition:
-    border-color 0.15s,
-    background 0.15s,
-    color 0.15s,
-    transform 0.08s;
-}
-
-.settings-field__confirm {
-  color: #16a34a;
-}
-
-.settings-field__confirm:hover {
-  border-color: #16a34a;
-  background: rgba(22, 163, 74, 0.08);
-}
-
-.settings-field__cancel {
-  color: #dc2626;
-}
-
-.settings-field__cancel:hover {
-  border-color: #dc2626;
-  background: rgba(220, 38, 38, 0.08);
-}
-
-.settings-field__confirm:active,
-.settings-field__cancel:active {
-  transform: scale(0.9);
-}
-
-/* ===== 启动行为三选 ===== */
-.settings-options {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.settings-option {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
-}
-
-.settings-option__radio {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.settings-option__label {
-  font-size: 13px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.settings-option__label::before {
-  content: "";
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--border);
-  border-radius: 50%;
-  flex-shrink: 0;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.settings-option__desc {
-  font-size: 11px;
-  color: var(--muted);
-  padding-left: 22px;
-}
-
-.settings-option--on {
-  border-color: var(--accent);
-  background: rgba(30, 136, 229, 0.06);
-  box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.12);
-}
-
-.settings-option--on .settings-option__label::before {
-  border-color: var(--accent);
-  border-width: 5px;
-}
-
-/* ===== 开关 ===== */
-.settings-switch {
-  position: relative;
-  width: 44px;
-  height: 24px;
+  width: 34px;
   flex-shrink: 0;
   padding: 0;
-  background: var(--border);
-  border: none;
-  border-radius: 999px;
+  color: var(--text-2);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
 }
 
-.settings-switch__knob {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s;
+.settings-input__btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
-.settings-switch--on {
-  background: var(--accent);
+.settings-input__btn--ok:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
-.settings-switch--on .settings-switch__knob {
-  transform: translateX(20px);
+.settings-input__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-/* ===== 次级按钮（打开日志目录等一键操作） ===== */
+/* ---- 行内按钮（打开日志目录等） ---- */
 .settings-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  padding: 10px 12px;
-  font-size: 13px;
+  gap: 7px;
+  padding: 8px 14px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-1);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
   transition:
+    color 0.15s,
     border-color 0.15s,
-    background 0.15s,
-    color 0.15s;
+    background 0.15s;
 }
 
 .settings-btn:hover:not(:disabled) {
   color: var(--accent);
   border-color: var(--accent);
-  background: rgba(30, 136, 229, 0.06);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 
 .settings-btn:disabled {
   opacity: 0.6;
   cursor: default;
 }
-
-

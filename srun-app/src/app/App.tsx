@@ -1,24 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import HeroButton from "@/components/HeroButton/HeroButton";
-import SettingsPanel from "@/components/SettingsPanel/SettingsPanel";
 import ToastStack from "@/components/Toast/ToastStack";
 import { IconGear, IconRefresh, IconTimeline } from "@/components/icons/Icons";
 import { useNetwork } from "@/hooks/useNetwork";
+import { useThemeSync } from "@/hooks/useThemeSync";
 import { useToasts } from "@/hooks/useToasts";
 import {
-  applyTheme,
   readAutostartVersion,
   readSilentStart,
-  readTheme,
   writeAutostartVersion,
 } from "@/domain/settings";
 import { formatBytes, formatDuration } from "@/common/utils";
 
 export default function App() {
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const { toasts, showToast, dismissToast } = useToasts();
   const {
     status,
@@ -32,9 +29,11 @@ export default function App() {
     handleRefresh,
   } = useNetwork(showToast);
 
-  // 启动时的非网络初始化：主题、窗口显示（自启动补显）、自启动版本兼容
+  // 主题：应用已保存的值，并跟随设置窗口里做的修改
+  useThemeSync();
+
+  // 启动时的非网络初始化：窗口显示（自启动补显）、自启动版本兼容
   useEffect(() => {
-    applyTheme(readTheme());
     (async () => {
       // 窗口默认隐藏（tauri.conf.json visible:false）。
       // 手动启动的显示已由后端 setup 直接保证（不依赖前端）；
@@ -77,7 +76,14 @@ export default function App() {
     }
   }
 
-  const online = info?.online;
+  /// 打开独立的「设置」窗口（已打开则唤起并聚焦）
+  async function openSettings() {
+    try {
+      await invoke("open_settings_window");
+    } catch (err) {
+      showToast(`打开设置窗口失败：${String(err)}`);
+    }
+  }
 
   return (
     <div className="shell">
@@ -89,16 +95,16 @@ export default function App() {
           title="网络使用历史"
           aria-label="网络使用历史"
         >
-          <IconTimeline size={20} />
+          <IconTimeline size={15} />
         </button>
         <button
           type="button"
           className="icon-btn"
-          onClick={() => setSettingsOpen(true)}
+          onClick={() => void openSettings()}
           title="设置"
           aria-label="设置"
         >
-          <IconGear size={20} />
+          <IconGear size={15} />
         </button>
         <button
           type="button"
@@ -108,16 +114,11 @@ export default function App() {
           title="刷新状态"
           aria-label="刷新状态"
         >
-          <IconRefresh size={20} />
+          <IconRefresh size={15} />
         </button>
       </div>
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onToast={showToast}
-      />
       <main className="home">
         <HeroButton
           status={status.kind}
@@ -125,51 +126,51 @@ export default function App() {
           onClick={handleButtonClick}
         />
 
-        <section className="status-card" aria-label="网络状态">
-          <div className="status-grid">
-            <div className="status-item">
-              <span className="status-item__label">状态</span>
-              <span
-                className={`status-item__value status-item__value--${online ? "on" : "off"}`}
-              >
-                {info ? (online ? "在线" : "离线") : "—"}
-              </span>
-            </div>
-            <div className="status-item">
-              <span className="status-item__label">账户</span>
-              <span className="status-item__value">{info?.username || "—"}</span>
-            </div>
-            <div className="status-item">
-              <span className="status-item__label">IP 地址</span>
-              <span className="status-item__value">{info?.ip || "—"}</span>
-            </div>
-            <div className="status-item">
-              <span className="status-item__label">上线时长</span>
-              <span className="status-item__value">
+        <section className="panel" aria-label="网络状态">
+          {/* 两个主数字：在线时长 / 已用流量，第一眼就能读到 */}
+          <div className="panel__figures">
+            <div className="figure">
+              <span className="figure__value">
                 {info ? formatDuration(info.online_seconds) : "—"}
               </span>
+              <span className="figure__label">在线时长</span>
             </div>
-            <div className="status-item">
-              <span className="status-item__label">已用流量</span>
-              <span className="status-item__value">
+            <span className="panel__rule" aria-hidden />
+            <div className="figure figure--end">
+              <span className="figure__value">
                 {info ? formatBytes(info.total_bytes) : "—"}
               </span>
-            </div>
-            <div className="status-item">
-              <span className="status-item__label">在线设备</span>
-              <span className="status-item__value">
-                {info ? info.online_devices : "—"}
-              </span>
+              <span className="figure__label">已用流量</span>
             </div>
           </div>
+
+          <dl className="facts">
+            <div className="fact">
+              <dt>账户</dt>
+              <dd title={info?.username || undefined}>{info?.username || "—"}</dd>
+            </div>
+            <div className="fact">
+              <dt>IP</dt>
+              <dd title={info?.ip || undefined}>{info?.ip || "—"}</dd>
+            </div>
+            <div className="fact">
+              <dt>WiFi</dt>
+              <dd title={wifi?.ssid ?? undefined}>{wifi?.ssid ?? "—"}</dd>
+            </div>
+            <div className="fact">
+              <dt>设备</dt>
+              <dd>{info ? info.online_devices : "—"}</dd>
+            </div>
+          </dl>
+
           {wifi && wifiOnOther && (
             <div className="wifi-hint">
               <span className="wifi-hint__msg">
-                当前连接的是「{wifi.ssid}」，不是校园网「{targetSsid}」，单击上方按钮切换
+                「{wifi.ssid}」不是校园网「{targetSsid}」，点上方球体切换
               </span>
             </div>
           )}
-          {infoError && <p className="status-card__error">{infoError}</p>}
+          {infoError && <p className="panel__error">{infoError}</p>}
         </section>
       </main>
     </div>
