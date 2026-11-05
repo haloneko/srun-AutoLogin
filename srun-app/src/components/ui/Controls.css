@@ -1,0 +1,172 @@
+/* ===== 通用表单控件（设置等界面共用） ===== */
+
+/* ---- 表单行 ---- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.field:first-of-type {
+  margin-top: 0;
+}
+
+.field--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+}
+
+.field--inline .field__label {
+  width: 132px;
+  flex-shrink: 0;
+}
+
+.field--inline .field__control {
+  flex: 1;
+}
+
+.field__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.field__hint {
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.field__control {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* ---- 开关 ---- */
+.switch {
+  position: relative;
+  width: 42px;
+  height: 23px;
+  flex-shrink: 0;
+  padding: 0;
+  background: var(--border);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.switch--on {
+  background: var(--accent);
+}
+
+.switch:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.switch__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(2, 8, 20, 0.28);
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.switch--on .switch__knob {
+  transform: translateX(19px);
+}
+
+/* ---- 单选卡片 ---- */
+.options {
+  display: grid;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.options--cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.options--cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 12px 9px 32px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.option:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.option--on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+/* 原生 radio 只留一个圆点，按钮态由卡片本身表达 */
+.option__radio {
+  position: absolute;
+  top: 11px;
+  left: 11px;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    border-width 0.15s;
+}
+
+.option--on .option__radio {
+  border: 4.5px solid var(--accent);
+}
+
+.option__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.option__desc {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch__knob,
+  .option {
+    transition: none;
+  }
+}

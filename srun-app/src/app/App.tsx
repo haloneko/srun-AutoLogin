@@ -1,24 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import HeroButton from "@/components/HeroButton/HeroButton";
-import SettingsPanel from "@/components/SettingsPanel/SettingsPanel";
 import ToastStack from "@/components/Toast/ToastStack";
 import { IconGear, IconRefresh, IconTimeline } from "@/components/icons/Icons";
 import { useNetwork } from "@/hooks/useNetwork";
+import { useThemeSync } from "@/hooks/useThemeSync";
 import { useToasts } from "@/hooks/useToasts";
 import {
-  applyTheme,
   readAutostartVersion,
   readSilentStart,
-  readTheme,
   writeAutostartVersion,
 } from "@/domain/settings";
 import { formatBytes, formatDuration } from "@/common/utils";
 
 export default function App() {
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const { toasts, showToast, dismissToast } = useToasts();
   const {
     status,
@@ -32,9 +29,11 @@ export default function App() {
     handleRefresh,
   } = useNetwork(showToast);
 
-  // 启动时的非网络初始化：主题、窗口显示（自启动补显）、自启动版本兼容
+  // 主题：应用已保存的值，并跟随设置窗口里做的修改
+  useThemeSync();
+
+  // 启动时的非网络初始化：窗口显示（自启动补显）、自启动版本兼容
   useEffect(() => {
-    applyTheme(readTheme());
     (async () => {
       // 窗口默认隐藏（tauri.conf.json visible:false）。
       // 手动启动的显示已由后端 setup 直接保证（不依赖前端）；
@@ -77,6 +76,15 @@ export default function App() {
     }
   }
 
+  /// 打开独立的「设置」窗口（已打开则唤起并聚焦）
+  async function openSettings() {
+    try {
+      await invoke("open_settings_window");
+    } catch (err) {
+      showToast(`打开设置窗口失败：${String(err)}`);
+    }
+  }
+
   return (
     <div className="shell">
       <div className="topbar">
@@ -92,7 +100,7 @@ export default function App() {
         <button
           type="button"
           className="icon-btn"
-          onClick={() => setSettingsOpen(true)}
+          onClick={() => void openSettings()}
           title="设置"
           aria-label="设置"
         >
@@ -111,11 +119,6 @@ export default function App() {
       </div>
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        onToast={showToast}
-      />
       <main className="home">
         <HeroButton
           status={status.kind}

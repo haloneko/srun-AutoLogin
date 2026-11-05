@@ -250,6 +250,14 @@ fn network_history_clear() -> Result<(), String> {
 /// 「网络使用历史」独立窗口的 label（前端据此决定渲染哪个界面）
 const HISTORY_WINDOW_LABEL: &str = "history";
 
+/// 两个子窗口（历史 / 设置）共用的尺寸与最小尺寸。
+///
+/// 统一一处定义，避免以后再来回改：两边一样大，来回切换时窗口不会忽大忽小。
+const CHILD_WINDOW_WIDTH: f64 = 900.0;
+const CHILD_WINDOW_HEIGHT: f64 = 640.0;
+const CHILD_WINDOW_MIN_WIDTH: f64 = 720.0;
+const CHILD_WINDOW_MIN_HEIGHT: f64 = 480.0;
+
 /// 打开「网络使用历史」独立窗口 command：前端 `invoke("open_history_window")` 调用。
 ///
 /// 窗口已存在（最小化或被遮挡）时直接唤起并聚焦，不重复创建；
@@ -273,8 +281,8 @@ async fn open_history_window(app: AppHandle) -> Result<(), String> {
         tauri::WebviewUrl::App("index.html".into()),
     )
     .title("网络使用历史")
-    .inner_size(1000.0, 640.0)
-    .min_inner_size(760.0, 480.0)
+    .inner_size(CHILD_WINDOW_WIDTH, CHILD_WINDOW_HEIGHT)
+    .min_inner_size(CHILD_WINDOW_MIN_WIDTH, CHILD_WINDOW_MIN_HEIGHT)
     .center();
     // 与主窗口一致使用应用图标（不设置则回退到系统默认图标）
     if let Some(icon) = app.default_window_icon() {
@@ -291,6 +299,42 @@ async fn open_history_window(app: AppHandle) -> Result<(), String> {
                 Ok(())
             } else {
                 Err(format!("打开历史窗口失败: {e}"))
+            }
+        }
+    }
+}
+
+const SETTINGS_WINDOW_LABEL: &str = "settings";
+#[tauri::command]
+async fn open_settings_window(app: AppHandle) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window(SETTINGS_WINDOW_LABEL) {
+        let _ = win.unminimize();
+        let _ = win.show();
+        let _ = win.set_focus();
+        return Ok(());
+    }
+    let mut builder = tauri::WebviewWindowBuilder::new(
+        &app,
+        SETTINGS_WINDOW_LABEL,
+        tauri::WebviewUrl::App("index.html".into()),
+    )
+    .title("设置")
+    .inner_size(CHILD_WINDOW_WIDTH, CHILD_WINDOW_HEIGHT)
+    .min_inner_size(CHILD_WINDOW_MIN_WIDTH, CHILD_WINDOW_MIN_HEIGHT)
+    .center();
+    if let Some(icon) = app.default_window_icon() {
+        builder = builder.icon(icon.clone()).map_err(|e| e.to_string())?;
+    }
+    match builder.build() {
+        Ok(_) => {
+            log::info!("已打开设置窗口");
+            Ok(())
+        }
+        Err(e) => {
+            if app.get_webview_window(SETTINGS_WINDOW_LABEL).is_some() {
+                Ok(())
+            } else {
+                Err(format!("打开设置窗口失败: {e}"))
             }
         }
     }
@@ -447,6 +491,7 @@ pub fn run() {
             network_history_clear,
             open_log_dir,
             open_history_window,
+            open_settings_window,
             close_current_window
         ])
         .build(tauri::generate_context!())
