@@ -77,8 +77,6 @@ export default function App() {
     }
   }
 
-  const online = info?.online;
-
   return (
     <div className="shell">
       <div className="topbar">
@@ -89,7 +87,7 @@ export default function App() {
           title="网络使用历史"
           aria-label="网络使用历史"
         >
-          <IconTimeline size={20} />
+          <IconTimeline size={15} />
         </button>
         <button
           type="button"
@@ -98,7 +96,7 @@ export default function App() {
           title="设置"
           aria-label="设置"
         >
-          <IconGear size={20} />
+          <IconGear size={15} />
         </button>
         <button
           type="button"
@@ -108,7 +106,7 @@ export default function App() {
           title="刷新状态"
           aria-label="刷新状态"
         >
-          <IconRefresh size={20} />
+          <IconRefresh size={15} />
         </button>
       </div>
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
@@ -125,51 +123,51 @@ export default function App() {
           onClick={handleButtonClick}
         />
 
-        <section className="status-card" aria-label="网络状态">
-          <div className="status-grid">
-            <div className="status-item">
-              <span className="status-item__label">状态</span>
-              <span
-                className={`status-item__value status-item__value--${online ? "on" : "off"}`}
-              >
-                {info ? (online ? "在线" : "离线") : "—"}
-              </span>
-            </div>
-            <div className="status-item">
-              <span className="status-item__label">账户</span>
-              <span className="status-item__value">{info?.username || "—"}</span>
-            </div>
-            <div className="status-item">
-              <span className="status-item__label">IP 地址</span>
-              <span className="status-item__value">{info?.ip || "—"}</span>
-            </div>
-            <div className="status-item">
-              <span className="status-item__label">上线时长</span>
-              <span className="status-item__value">
+        <section className="panel" aria-label="网络状态">
+          {/* 两个主数字：在线时长 / 已用流量，第一眼就能读到 */}
+          <div className="panel__figures">
+            <div className="figure">
+              <span className="figure__value">
                 {info ? formatDuration(info.online_seconds) : "—"}
               </span>
+              <span className="figure__label">在线时长</span>
             </div>
-            <div className="status-item">
-              <span className="status-item__label">已用流量</span>
-              <span className="status-item__value">
+            <span className="panel__rule" aria-hidden />
+            <div className="figure figure--end">
+              <span className="figure__value">
                 {info ? formatBytes(info.total_bytes) : "—"}
               </span>
-            </div>
-            <div className="status-item">
-              <span className="status-item__label">在线设备</span>
-              <span className="status-item__value">
-                {info ? info.online_devices : "—"}
-              </span>
+              <span className="figure__label">已用流量</span>
             </div>
           </div>
+
+          <dl className="facts">
+            <div className="fact">
+              <dt>账户</dt>
+              <dd title={info?.username || undefined}>{info?.username || "—"}</dd>
+            </div>
+            <div className="fact">
+              <dt>IP</dt>
+              <dd title={info?.ip || undefined}>{info?.ip || "—"}</dd>
+            </div>
+            <div className="fact">
+              <dt>WiFi</dt>
+              <dd title={wifi?.ssid ?? undefined}>{wifi?.ssid ?? "—"}</dd>
+            </div>
+            <div className="fact">
+              <dt>设备</dt>
+              <dd>{info ? info.online_devices : "—"}</dd>
+            </div>
+          </dl>
+
           {wifi && wifiOnOther && (
             <div className="wifi-hint">
               <span className="wifi-hint__msg">
-                当前连接的是「{wifi.ssid}」，不是校园网「{targetSsid}」，单击上方按钮切换
+                「{wifi.ssid}」不是校园网「{targetSsid}」，点上方球体切换
               </span>
             </div>
           )}
-          {infoError && <p className="status-card__error">{infoError}</p>}
+          {infoError && <p className="panel__error">{infoError}</p>}
         </section>
       </main>
     </div>

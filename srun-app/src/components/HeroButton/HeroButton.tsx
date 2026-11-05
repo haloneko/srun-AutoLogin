@@ -45,34 +45,14 @@ function heroHint(status: HeroStatus): string {
   }
 }
 
-/// 登录中 / 注销中 / 已连接：中心发光球体（呼吸脉动，已连接时上下浮动）
-function Orb() {
-  return (
-    <svg className="hero-orb__svg" viewBox="0 0 220 220" aria-hidden>
-      <defs>
-        <radialGradient id="hero-core-grad" cx="50%" cy="36%" r="72%">
-          <stop offset="0%" stopColor="var(--core-hi)" />
-          <stop offset="100%" stopColor="var(--core-lo)" />
-        </radialGradient>
-      </defs>
-      <circle className="hero-orb__core" cx="110" cy="110" r="70" />
-    </svg>
-  );
-}
-
-/// 未登录 / 失败 / 出错：单个静态线框圆
-function Ring() {
-  return (
-    <svg className="hero-orb__svg" viewBox="0 0 220 220" aria-hidden>
-      <circle className="hero-ring__circle" cx="110" cy="110" r="98" />
-    </svg>
-  );
-}
-
+/// 状态球：外圈刻度环 + 内圈轨道 + 连接中的对向双弧 + 球心文字。
+///
+/// 记忆点全在这一个环上——离线时是静止的灰刻度（像仪表的零位），
+/// 连接中双弧对向扫过，在线时刻度环缓慢自转并透出呼吸光晕。
+/// 层叠顺序即绘制顺序：刻度 → 轨道 → 弧 → 内环 → 球体（球体透明时露出内环）。
 export default function HeroButton({ status, disabled, onClick }: HeroButtonProps) {
   const busy = status === "loading" || status === "loggingOut";
   const live = status === "success";
-  const showOrb = busy || live;
   return (
     <>
       <button
@@ -83,15 +63,21 @@ export default function HeroButton({ status, disabled, onClick }: HeroButtonProp
         title={live ? "点击退出登录" : "点击登录"}
         aria-label={live ? "退出登录" : "登录"}
       >
-        <span className={`hero-visual${showOrb ? " hero-visual--orb" : ""}`}>
-          {showOrb ? <Orb /> : <Ring />}
-          <span className="hero-badge">
-            <span className="hero-badge__label">{heroLabel(status)}</span>
-            {live && <span className="hero-badge__label hero-badge__label--alt">退出登录</span>}
+        <span className="hero-visual">
+          <svg className="hero-svg" viewBox="0 0 200 200" aria-hidden>
+            <circle className="hero-ticks" cx="100" cy="100" r="90" pathLength="100" />
+            <circle className="hero-track" cx="100" cy="100" r="79" />
+            <circle className="hero-arc hero-arc--a" cx="100" cy="100" r="79" pathLength="100" />
+            <circle className="hero-arc hero-arc--b" cx="100" cy="100" r="79" pathLength="100" />
+            <circle className="hero-inner" cx="100" cy="100" r="55" />
+          </svg>
+          <span className="hero-label">
+            <span className="hero-label__text">{heroLabel(status)}</span>
+            {live && <span className="hero-label__alt">退出登录</span>}
           </span>
         </span>
       </button>
-      {!showOrb && (
+      {!busy && !live && (
         <span className="hero-hint" aria-hidden>
           {heroHint(status)}
         </span>

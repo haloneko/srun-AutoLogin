@@ -1,203 +1,340 @@
-/* ===== 大登录按钮（HeroButton 专属样式） ===== */
+/* ===== 状态球（HeroButton 专属样式） =====
+   一个环讲完所有状态：
+   刻度环静止=离线 / 双弧对向旋转=连接中 / 刻度环缓慢自转+呼吸光晕=在线 */
 
 .hero {
+  /* 默认（未登录）：灰刻度、空心球。文字跟随主题，深色下不至于看不清 */
+  --core-hi: #ffffff;
+  --core-lo: #cbd5e1;
+  --hero-accent: #94a3b8;
+  --hero-text: var(--text-2, #55606d);
   position: relative;
-  width: 280px;
-  height: 280px;
-  margin-top: -30px; /* 整体比原布局上移一点 */
+  width: 190px;
+  height: 190px;
   padding: 0;
   border: none;
   border-radius: 50%;
   background: transparent;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   cursor: pointer;
-  transition:
-    filter 0.2s,
-    transform 0.08s;
+  transition: transform 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: hero-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.hero:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .hero:disabled {
   cursor: wait;
 }
 
-.hero:active:not(:disabled) {
-  transform: scale(0.96);
-}
+/* ---- 状态配色 ---- */
 
-/* ---- 视觉容器：svg + 球心文字叠放 ---- */
-
-.hero-visual {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hero-orb__svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* ---- 线框圆（未登录 / 失败 / 出错） ---- */
-
-.hero-ring__circle {
-  fill: none;
-  stroke: #9ca3af; /* 未登录：灰色线框，不填充 */
-  stroke-width: 3;
-  transition: stroke 0.3s;
-}
-
-.hero:hover:not(:disabled) .hero-ring__circle {
-  stroke: #6b7280;
-}
-
-.hero--fail .hero-ring__circle {
-  stroke: #f59e0b;
-}
-
-.hero--error .hero-ring__circle {
-  stroke: #ef4444;
-}
-
-/* ---- 缠绕线框球体（登录中 / 注销中 / 已连接） ---- */
-
-/* 状态配色 */
 .hero--loading,
 .hero--loggingOut {
-  --core-hi: #a5f3fc;
-  --core-lo: #2563eb;
+  --core-hi: #cffafe;
+  --core-lo: #0284c7;
   --hero-accent: #38bdf8;
-  --hero-text: #0ea5e9;
+  --hero-text: #0369a1;
 }
 
 .hero--success {
-  --core-hi: #86efac;
-  --core-lo: #16a34a;
-  --hero-accent: #22c55e;
-  --hero-text: #16a34a;
+  --core-hi: #bbf7d0;
+  --core-lo: #059669;
+  --hero-accent: #10b981;
+  --hero-text: #047857;
 }
 
-/* 已连接：整体上下浮动 */
-.hero--success .hero-visual {
-  animation: orb-float 3.4s ease-in-out infinite;
+.hero--fail {
+  --hero-accent: var(--warn, #b45309);
+  --hero-text: var(--warn, #b45309);
 }
 
-/* 登录中 / 注销中：启动光晕脉冲 */
-.hero--loading .hero-visual,
-.hero--loggingOut .hero-visual {
-  animation: start-breathe 1.6s ease-in-out infinite;
+.hero--error {
+  --hero-accent: var(--danger, #be123c);
+  --hero-text: var(--danger, #be123c);
 }
 
-/* 中心球体 */
-.hero-orb__core {
-  fill: url(#hero-core-grad);
-  opacity: 0.92;
-  filter: drop-shadow(0 0 18px var(--hero-accent));
+/* 深色下球心文字要更亮，否则埋在渐变里 */
+:root[data-theme="dark"] .hero--success,
+:root[data-theme="dark"] .hero--loading,
+:root[data-theme="dark"] .hero--loggingOut {
+  --hero-text: #ecfdf5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .hero--success,
+  :root:not([data-theme="light"]) .hero--loading,
+  :root:not([data-theme="light"]) .hero--loggingOut {
+    --hero-text: #ecfdf5;
+  }
+}
+
+/* ---- 视觉容器 ---- */
+
+.hero-visual {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* 球体背后的光：让球「浮」在面板上，而不是贴在上面 */
+.hero-visual::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--hero-accent) 38%, transparent) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+
+.hero--loading .hero-visual::before,
+.hero--loggingOut .hero-visual::before,
+.hero--success .hero-visual::before {
+  opacity: 0.85;
+}
+
+.hero--success .hero-visual::before {
+  animation: halo-breathe 3.2s ease-in-out infinite;
+}
+
+/* 球心：用 CSS 渐变画（SVG 渐变里的 var() 在部分环境不生效），
+   亮面偏左上，与仪表灯的塑料/玻璃质感一致 */
+.hero-visual::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  width: 55%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 30%, var(--core-hi) 0%, var(--core-lo) 78%);
+  box-shadow:
+    0 0 18px color-mix(in srgb, var(--hero-accent) 42%, transparent),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -10px 20px rgba(2, 8, 20, 0.14);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+
+.hero--loading .hero-visual::after,
+.hero--loggingOut .hero-visual::after,
+.hero--success .hero-visual::after {
+  opacity: 1;
+}
+
+.hero--success .hero-visual::after {
+  animation: core-pulse 2.8s ease-in-out infinite;
+}
+
+.hero-svg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+/* ---- 刻度环：仪表的零位 ---- */
+
+.hero-ticks {
+  fill: none;
+  stroke: var(--hero-accent);
+  /* 细长刻度：沿周长 1.4 格、径向 2.5px，绕一圈正好 25 根 */
+  stroke-width: 2.5;
+  stroke-dasharray: 1.4 4;
+  opacity: 0.32;
   transform-box: view-box;
   transform-origin: 50% 50%;
-  animation: core-breathe 2.8s ease-in-out infinite;
+  transition: opacity 0.3s;
 }
 
-@keyframes core-breathe {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.045);
-  }
+.hero--success .hero-ticks {
+  opacity: 0.5;
+  animation: ring-spin 30s linear infinite;
 }
 
-@keyframes orb-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-14px);
-  }
+.hero--loading .hero-ticks,
+.hero--loggingOut .hero-ticks {
+  opacity: 0.75;
+  animation: ring-spin 5s linear infinite;
 }
 
-@keyframes start-breathe {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.82;
-  }
-  50% {
-    transform: scale(1.035);
-    opacity: 1;
-  }
+.hero--fail .hero-ticks,
+.hero--error .hero-ticks {
+  opacity: 0.4;
+}
+
+/* ---- 内圈轨道 / 空心内环 ---- */
+
+.hero-track {
+  fill: none;
+  stroke: var(--hero-accent);
+  stroke-width: 1;
+  opacity: 0.22;
+}
+
+.hero-inner {
+  fill: none;
+  stroke: var(--hero-accent);
+  stroke-width: 1;
+  opacity: 0.42;
+  transition: opacity 0.35s;
+}
+
+/* 有球体填充时，内环被盖住即可（球体透明时它就是空心轮廓） */
+.hero--loading .hero-inner,
+.hero--loggingOut .hero-inner,
+.hero--success .hero-inner {
+  opacity: 0;
+}
+
+/* ---- 连接中的对向双弧 ---- */
+
+.hero-arc {
+  fill: none;
+  stroke: var(--hero-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 14 86;
+  opacity: 0;
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+  filter: drop-shadow(0 0 5px var(--hero-accent));
+}
+
+.hero-arc--b {
+  stroke-width: 2;
+  stroke-dasharray: 7 93;
+}
+
+.hero--loading .hero-arc--a,
+.hero--loggingOut .hero-arc--a {
+  opacity: 1;
+  animation: arc-spin 1.1s linear infinite;
+}
+
+.hero--loading .hero-arc--b,
+.hero--loggingOut .hero-arc--b {
+  opacity: 0.6;
+  animation: arc-spin 1.9s linear infinite reverse;
 }
 
 /* ---- 球心文字 ---- */
 
-.hero-badge {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.hero-label {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  place-items: center;
   pointer-events: none;
-  z-index: 1;
 }
 
-.hero-badge__label {
-  font-size: 26px;
+.hero-label__text,
+.hero-label__alt {
+  grid-area: 1 / 1;
+  font-size: 19px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--hero-text, #6b7280);
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.06em;
+  color: var(--hero-text);
   transition:
-    color 0.3s,
-    opacity 0.2s;
+    opacity 0.2s,
+    color 0.3s;
 }
 
-.hero--idle .hero-badge__label {
-  color: #6b7280;
+/* 在线时球心有底色，文字用浅色更清晰 */
+.hero--success .hero-label__text {
+  color: #f0fdf4;
+  text-shadow: 0 1px 6px rgba(4, 120, 87, 0.45);
 }
 
-.hero--fail .hero-badge__label {
-  color: #d97706;
+.hero--loading .hero-label__text,
+.hero--loggingOut .hero-label__text {
+  color: #f0f9ff;
+  text-shadow: 0 1px 6px rgba(2, 132, 199, 0.45);
 }
 
-.hero--error .hero-badge__label {
-  color: #b91c1c;
+.hero-label__alt {
+  opacity: 0;
+  color: #fb7185;
+  text-shadow: 0 1px 6px rgba(2, 8, 20, 0.35);
 }
 
 /* 已连接 ⇄ 退出登录：悬浮切换 */
-.hero-badge__label--alt {
-  position: absolute;
-  opacity: 0;
-  color: #b91c1c;
-}
-
-.hero--success:hover .hero-badge__label {
+.hero--success:hover .hero-label__text {
   opacity: 0;
 }
 
-.hero--success:hover .hero-badge__label--alt {
+.hero--success:hover .hero-label__alt {
   opacity: 1;
 }
 
-/* ---- 按钮下方提示（独立于按钮，正常文本流，不与圆形重叠） ---- */
+/* ---- 按钮下方提示（正常文本流，不与圆形重叠） ---- */
 
 .hero-hint {
-  width: 280px;
-  margin-top: -20px; /* 在 .home 24px 间距基础上收紧，贴近按钮 */
+  width: 190px;
+  margin-top: -4px;
   text-align: center;
-  font-size: 12px;
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
   color: var(--muted, #6b7280);
   pointer-events: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 12px;
-  box-sizing: border-box;
+}
+
+/* ---- 动效 ---- */
+
+@keyframes hero-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes arc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ring-spin {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes core-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+@keyframes halo-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.06);
+  }
 }
