@@ -8,14 +8,27 @@
 | `srun-cli` | 命令行工具：登录、失败重试、dry-run 离线调试 | Rust (clap + tokio) |
 | `srun-app` | 桌面应用：可视化登录/状态/设置、托盘常驻 | Tauri 2 + React |
 
+## 界面预览
+
+<table>
+  <tr>
+    <td align="center"><img src="https://raw.githubusercontent.com/haloneko/srun-AutoLogin/999530977915bb6b7133fe67189b846c21c6f5cd/docs/screenshots/已连接.jpg" width="420"><br><sub>主界面 · 已连接</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/haloneko/srun-AutoLogin/999530977915bb6b7133fe67189b846c21c6f5cd/docs/screenshots/连接别的wifi.jpg" width="420"><br><sub>主界面 · 连到其他 WiFi 时的提示</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="https://raw.githubusercontent.com/haloneko/srun-AutoLogin/999530977915bb6b7133fe67189b846c21c6f5cd/docs/screenshots/设置.jpg" width="420"><br><sub>设置（独立窗口）</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/haloneko/srun-AutoLogin/999530977915bb6b7133fe67189b846c21c6f5cd/docs/screenshots/网络使用历史.jpg" width="420"><br><sub>网络使用历史（独立窗口）</sub></td>
+  </tr>
+</table>
+
 ## 功能介绍
 
-- **图形化界面**：登录 / 状态 / 设置一体化，支持主题切换（跟随系统 / 浅色 / 深色）
-- **一键登录 / 注销**：主按钮随在线状态自动切换操作；登录失败自动重试，断网后自动恢复
+- **一键登录 / 注销**：主按钮随在线状态切换操作；登录失败自动重试，断网后自动恢复
+- **状态与用量**：在线时长、已用流量以大数字展示，账户、IP、WiFi 名称、在线设备数收为紧凑表格，支持手动刷新
 - **自动探测登录**：连上校园网后自动检测是否已认证，未认证且保存过凭据时自动登录，无需手动操作
-- **WiFi 自动连接**：配置校园网 SSID 与密码后自动连接（「未连接时自动 / 始终自动」两种模式）；当前连的是其他 WiFi 时给出提示，一键切换回校园网
-- **状态展示**：在线状态、账户、IP 地址、上线时长、已用流量、在线设备数，支持手动刷新
-- **设置**：账号密码、认证服务器地址、启动行为（自动 / 手动 / 记录上次状态）、开机自启动、静默启动、WiFi 连接、主题；高级选项可自定义网关兼容参数（认证组 `ac_id`、加密版本、字母表、User-Agent）
+- **WiFi 自动连接**：配置校园网 SSID 与密码后自动连接（「未连接时自动 / 始终自动」两种模式）；当前连的是其他 WiFi 时给出提示，点击状态球即可切回校园网
+- **网络使用历史**：独立窗口按时间轴记录最近 5 天的网络状态，可切换日期、滚轮缩放、拖拽或滑动条平移；进行中的区段随时间实时增长，网络切换即时反映
+- **设置**：独立窗口，左侧分类导航；账号密码、认证服务器、启动行为（自动 / 手动 / 记录上次状态）、开机自启动、静默启动、WiFi 连接、主题（跟随系统 / 浅色 / 深色，三个窗口实时同步）；高级选项可自定义网关兼容参数（认证组 `ac_id`、加密版本、字母表、User-Agent）
 - **系统托盘**：点 × 隐藏后台运行，托盘图标切换窗口 / 退出
 - **启动显示规则**：手动启动总是显示主界面；仅开机自启动时按「静默启动」设置决定驻留托盘还是显示窗口
 - **单例运行**：重复启动只唤起已有窗口，不重复开进程
@@ -37,12 +50,13 @@ srun/
 ├── srun-cli/               # 命令行工具
 ├── srun-app/               # 桌面应用（React 前端 + Tauri 壳）
 │   ├── src/                # React 前端
-│   │   ├── app/            # 应用壳（主窗口 App.tsx / 历史窗口 HistoryWindow.tsx、全局样式）
-│   │   ├── components/     # UI 组件（HeroButton / SettingsPanel / NetworkHistory / Toast / icons）
-│   │   ├── hooks/          # 业务 Hook（useNetwork / useSession / useWifi / useToasts / useNetworkHistory）
+│   │   ├── app/            # 应用壳
+│   │   ├── components/     # UI 组件
+│   │   ├── hooks/          # 业务 Hook
 │   │   ├── domain/         # 纯领域逻辑（settings / status / networkHistory）
 │   │   └── common/         # 公共类型与工具（types / utils）
 │   └── src-tauri/          # Tauri 后端（Rust）
+├── docs/                   # 更新日志
 ├── scripts/                # 打包脚本（package / build-cli / build-app / build-installer）
 └── README.md
 ```
@@ -110,6 +124,10 @@ scripts\build-installer.bat    # 只打安装包
 - 安装包格式在 `srun-app\src-tauri\tauri.conf.json` 的 `bundle.targets` 配置，当前为 `"all"`（生成 NSIS + MSI）
 - 想加快打包或只出单一格式，可改为 `"nsis"` 或 `"msi"`
 - 首次打包耗时较长（需编译依赖并下载 WiX/NSIS 工具链），之后会缓存
+
+## 更新日志
+
+各版本改动见 [docs/CHANGELOG.md](docs/CHANGELOG.md)。
 
 ## 声明
 
