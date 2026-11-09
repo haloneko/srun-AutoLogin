@@ -75,7 +75,7 @@ export default function HistoryWindow() {
           </button>
           <button
             type="button"
-            className={`wf-btn wf-btn--danger${confirmClear ? " wf-btn--confirm" : ""}`}
+            className={`wf-btn wf-btn--danger${confirmClear ? " wf-btn--confirm" : " wf-btn--icon"}`}
             onClick={handleClear}
             title="清空历史记录"
           >
