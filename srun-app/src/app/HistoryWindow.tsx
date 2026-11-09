@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import WindowFrame from "@/components/WindowFrame/WindowFrame";
 import NetworkTimeline from "@/components/NetworkHistory/NetworkTimeline";
 import ToastStack from "@/components/Toast/ToastStack";
-import { IconClose, IconRefresh, IconTrash } from "@/components/icons/Icons";
+import { IconRefresh, IconTrash } from "@/components/icons/Icons";
 import { useNetworkHistory } from "@/hooks/useNetworkHistory";
 import { useThemeSync } from "@/hooks/useThemeSync";
 import { useToasts } from "@/hooks/useToasts";
@@ -81,15 +81,6 @@ export default function HistoryWindow() {
           >
             <IconTrash size={15} />
             {confirmClear && <span>确认清空？</span>}
-          </button>
-          <button
-            type="button"
-            className="wf-btn wf-btn--icon"
-            onClick={closeWindow}
-            title="关闭窗口"
-            aria-label="关闭窗口"
-          >
-            <IconClose size={15} />
           </button>
         </>
       }

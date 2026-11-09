@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import WindowFrame from "@/components/WindowFrame/WindowFrame";
 import SettingsPanel from "@/components/SettingsPanel/SettingsPanel";
 import ToastStack from "@/components/Toast/ToastStack";
-import { IconClose } from "@/components/icons/Icons";
 import { useThemeSync } from "@/hooks/useThemeSync";
 import { useToasts } from "@/hooks/useToasts";
 
@@ -41,17 +40,6 @@ export default function SettingsWindow() {
     <WindowFrame
       title="设置"
       subtitle="账号与网络参数仅保存在本机"
-      actions={
-        <button
-          type="button"
-          className="wf-btn wf-btn--icon"
-          onClick={closeWindow}
-          title="关闭窗口"
-          aria-label="关闭窗口"
-        >
-          <IconClose size={15} />
-        </button>
-      }
       overlay={<ToastStack toasts={toasts} onDismiss={dismissToast} />}
     >
       <SettingsPanel onToast={showToast} />
