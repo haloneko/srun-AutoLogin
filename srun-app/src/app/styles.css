@@ -99,8 +99,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* 顶部留出浮动工具栏的位置 */
-  padding: 54px 20px 22px;
+  /* 顶部留出浮动工具栏的位置；上下留白收一点，避免最小尺寸下溢出出滚动条 */
+  padding: 50px 20px 18px;
 }
 
 /* ===== 右上角工具栏：收成一颗胶囊，不再占满一行 ===== */
