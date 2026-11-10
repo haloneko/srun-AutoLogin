@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   AC_ID_KEY,
@@ -36,6 +36,7 @@ import {
 } from "@/components/icons/Icons";
 import { Field, OptionGroup, Switch } from "@/components/ui/Controls";
 import type { OptionItem } from "@/components/ui/Controls";
+import AboutPanel from "./AboutPanel";
 import { changeTheme, useThemeSync } from "@/hooks/useThemeSync";
 import { useTriggers } from "@/hooks/useTriggers";
 import { isThemeUnlocked, THEMES } from "@/domain/theme";
@@ -287,6 +288,17 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
   const [wifiMode, setWifiMode] = useState<WifiMode>("auto");
   const [openingLogDir, setOpeningLogDir] = useState(false);
   const [active, setActive] = useState(NAV[0].id);
+  /// 「关于」是独立页面：切过去时右侧只渲染它
+  const [showAbout, setShowAbout] = useState(false);
+  /// 从关于页切回配置页时要滚到的区段
+  const pendingScroll = useRef<string | null>(null);
+
+  useEffect(() => {
+    const id = pendingScroll.current;
+    if (showAbout || !id) return;
+    pendingScroll.current = null;
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [showAbout]);
 
   useTriggers();
 
@@ -380,7 +392,18 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
   /// 点击导航：滚动到对应区段（滚动容器是窗口主体）
   function goTo(id: string) {
     setActive(id);
+    if (showAbout) {
+      // 配置页被隐藏着，滚不动；先切回来，等渲染完再滚
+      pendingScroll.current = id;
+      setShowAbout(false);
+      return;
+    }
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openAbout() {
+    setActive("about");
+    setShowAbout(true);
   }
 
   /// 按注册表渲染一组文本字段
@@ -416,9 +439,20 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
             {item.label}
           </button>
         ))}
+        <button
+          type="button"
+          className={`settings-nav__item settings-nav__item--about${
+            active === "about" ? " settings-nav__item--on" : ""
+          }`}
+          onClick={openAbout}
+        >
+          关于
+        </button>
       </nav>
 
-      <div className="settings-panes">
+      <div className={`settings-panes${showAbout ? " settings-panes--about" : ""}`}>
+        {showAbout && <AboutPanel />}
+
         <section className="settings-section" id="account">
           <h2 className="settings-section__title">账号</h2>
           <p className="settings-section__desc">用于校园网认证，仅保存在本机。</p>
