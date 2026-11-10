@@ -72,17 +72,11 @@ export function isThemeUnlocked(theme: ThemeDef): boolean {
   return !theme.unlock || theme.unlock.when(readTriggers());
 }
 
-function pickUsable(theme: ThemeDef): ThemeDef {
-  return isThemeUnlocked(theme) ? theme : FALLBACK;
-}
-
 export function readTheme(): ThemeId {
-  return pickUsable(resolveTheme(readSetting(THEME_KEY))).id;
+  return resolveTheme(readSetting(THEME_KEY)).id;
 }
-
-/// 把主题应用到 `<html>`：写入 `data-theme`（配色）与 `data-bg`（背景）
 export function applyTheme(id: ThemeId) {
-  const theme = pickUsable(resolveTheme(id));
+  const theme = resolveTheme(id);
   const el = document.documentElement;
   if (theme.colorScheme === "system") {
     delete el.dataset.theme;
