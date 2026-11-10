@@ -451,7 +451,7 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
       </nav>
 
       <div className={`settings-panes${showAbout ? " settings-panes--about" : ""}`}>
-        {showAbout && <AboutPanel />}
+        {showAbout && <AboutPanel onToast={onToast} />}
 
         <section className="settings-section" id="account">
           <h2 className="settings-section__title">账号</h2>

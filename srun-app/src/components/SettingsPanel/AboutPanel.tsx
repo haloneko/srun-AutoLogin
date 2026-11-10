@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
+import { useKonamiCode } from "@/hooks/useKonamiCode";
+import { trigger } from "@/domain/triggers";
+
+interface AboutPanelProps {
+  onToast: (msg: string) => void;
+}
 
 /// 直接用到的开源项目：名字 / 用途 / 许可证
 const OPEN_SOURCE = [
@@ -15,9 +21,7 @@ const OPEN_SOURCE = [
   { name: "tauri-plugin-single-instance", desc: "单实例运行", license: "MIT / Apache-2.0" },
   { name: "windows", desc: "Windows WiFi 接口绑定", license: "MIT / Apache-2.0" },
 ];
-
-/// 关于页：应用信息 + 开源项目清单。
-export default function AboutPanel() {
+export default function AboutPanel({ onToast }: AboutPanelProps) {
   const [version, setVersion] = useState("");
 
   useEffect(() => {
@@ -25,6 +29,11 @@ export default function AboutPanel() {
       .then(setVersion)
       .catch(() => setVersion(""));
   }, []);
+
+  useKonamiCode(() => {
+    trigger("konami.entered");
+    onToast("隐藏指令已记录");
+  });
 
   return (
     <section className="settings-section about-section">

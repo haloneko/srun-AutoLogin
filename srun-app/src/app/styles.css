@@ -70,6 +70,10 @@
   box-sizing: border-box;
 }
 
+html.fx-locked {
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   color: var(--text);
