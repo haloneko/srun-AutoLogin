@@ -10,7 +10,6 @@ export const AC_ID_KEY = "srun.acId";
 export const ENC_VER_KEY = "srun.encVer";
 export const BASE64_ALPHA_KEY = "srun.base64Alpha";
 export const USER_AGENT_KEY = "srun.userAgent";
-export const THEME_KEY = "srun.theme";
 export const STARTUP_MODE_KEY = "srun.startupMode";
 export const SILENT_START_KEY = "srun.silentStart";
 export const WIFI_MODE_KEY = "srun.wifiMode";
@@ -32,9 +31,10 @@ export const DEFAULT_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 export type StartupMode = "auto" | "manual" | "remember";
-export type ThemeMode = "system" | "light" | "dark";
 /// WiFi 自动连接模式：未连接时自动 / 始终自动
 export type WifiMode = "auto" | "always";
+
+// 主题相关的类型与读写见 `@/domain/theme`（配色 + 背景特效两部分）。
 
 /// 读取原始存储值；异常或不存在时返回空字符串
 export function readSetting(key: string): string {
@@ -110,21 +110,6 @@ export function toLoginOptions(): GatewayOptions {
     base64Alpha: readBase64Alpha(),
     userAgent: readUserAgent(),
   };
-}
-
-export function readTheme(): ThemeMode {
-  const v = readSetting(THEME_KEY);
-  return v === "light" || v === "dark" || v === "system" ? v : "system";
-}
-
-/// 将主题应用到 <html> 的 data-theme 属性：light / dark 强制，system 删除属性（跟随系统）
-export function applyTheme(theme: ThemeMode) {
-  const el = document.documentElement;
-  if (theme === "light" || theme === "dark") {
-    el.dataset.theme = theme;
-  } else {
-    delete el.dataset.theme;
-  }
 }
 
 export function readStartupMode(): StartupMode {

@@ -15,12 +15,10 @@ import {
   readSetting,
   readSilentStart,
   readStartupMode,
-  readTheme,
   readWifiMode,
   SILENT_START_KEY,
   STARTUP_MODE_KEY,
   StartupMode,
-  ThemeMode,
   USERNAME_KEY,
   USER_AGENT_KEY,
   WIFI_MODE_KEY,
@@ -37,14 +35,17 @@ import {
   IconFolder,
 } from "@/components/icons/Icons";
 import { Field, OptionGroup, Switch } from "@/components/ui/Controls";
-import { changeTheme } from "@/hooks/useThemeSync";
+import type { OptionItem } from "@/components/ui/Controls";
+import { changeTheme, useThemeSync } from "@/hooks/useThemeSync";
+import { THEMES } from "@/domain/theme";
+import type { ThemeId } from "@/domain/theme";
 import "./SettingsPanel.css";
 
-const THEME_OPTIONS: { value: ThemeMode; label: string; desc: string }[] = [
-  { value: "system", label: "跟随系统", desc: "根据系统外观自动切换" },
-  { value: "light", label: "浅色", desc: "始终使用浅色主题" },
-  { value: "dark", label: "深色", desc: "始终使用深色主题" },
-];
+const THEME_OPTIONS: OptionItem[] = THEMES.map(({ id, label, desc }) => ({
+  value: id,
+  label,
+  desc,
+}));
 
 const STARTUP_OPTIONS: { value: StartupMode; label: string; desc: string }[] = [
   { value: "auto", label: "自动连接", desc: "打开软件后自动登录" },
@@ -282,7 +283,7 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
   /// 所有文本字段的当前编辑值 / 「已保存」基线，以 localStorage key 为索引
   const [values, setValues] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, string>>({});
-  const [theme, setTheme] = useState<ThemeMode>("system");
+  const theme = useThemeSync();
   const [startupMode, setStartupMode] = useState<StartupMode>("manual");
   const [autostart, setAutostart] = useState(false);
   const [autostartLoading, setAutostartLoading] = useState(false);
@@ -298,7 +299,6 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
     for (const f of TEXT_FIELDS) loaded[f.key] = readSetting(f.key) || f.defaultValue;
     setValues(loaded);
     setSaved({ ...loaded });
-    setTheme(readTheme());
     setStartupMode(readStartupMode());
     setSilentStart(readSilentStart());
     setWifiMode(readWifiMode());
@@ -494,9 +494,7 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
               value={theme}
               options={THEME_OPTIONS}
               onChange={(next) => {
-                setTheme(next as ThemeMode);
-                // 保存 + 本窗口立即生效 + 广播给主窗口与历史窗口
-                void changeTheme(next as ThemeMode);
+                void changeTheme(next as ThemeId);
                 const label = THEME_OPTIONS.find((o) => o.value === next)?.label ?? next;
                 onToast(`主题已切换为「${label}」`);
               }}
