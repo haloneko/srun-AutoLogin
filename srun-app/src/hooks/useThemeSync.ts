@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
-import { applyTheme, readTheme, saveTheme } from "@/domain/theme";
+import { applyTheme, isThemeUnlocked, readTheme, resolveTheme, saveTheme } from "@/domain/theme";
 import type { ThemeId } from "@/domain/theme";
 
 /// 主题变更广播事件名：窗口之间用它保持外观一致
@@ -39,6 +39,7 @@ export function useThemeSync(): ThemeId {
   return theme;
 }
 export async function changeTheme(id: ThemeId) {
+  if (!isThemeUnlocked(resolveTheme(id))) return;
   saveTheme(id);
   publish(id);
   try {

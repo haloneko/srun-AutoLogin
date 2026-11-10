@@ -37,15 +37,10 @@ import {
 import { Field, OptionGroup, Switch } from "@/components/ui/Controls";
 import type { OptionItem } from "@/components/ui/Controls";
 import { changeTheme, useThemeSync } from "@/hooks/useThemeSync";
-import { THEMES } from "@/domain/theme";
+import { useTriggers } from "@/hooks/useTriggers";
+import { isThemeUnlocked, THEMES } from "@/domain/theme";
 import type { ThemeId } from "@/domain/theme";
 import "./SettingsPanel.css";
-
-const THEME_OPTIONS: OptionItem[] = THEMES.map(({ id, label, desc }) => ({
-  value: id,
-  label,
-  desc,
-}));
 
 const STARTUP_OPTIONS: { value: StartupMode; label: string; desc: string }[] = [
   { value: "auto", label: "自动连接", desc: "打开软件后自动登录" },
@@ -293,6 +288,18 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
   const [openingLogDir, setOpeningLogDir] = useState(false);
   const [active, setActive] = useState(NAV[0].id);
 
+  useTriggers();
+
+  const themeOptions: OptionItem[] = THEMES.map((def) => {
+    const unlocked = isThemeUnlocked(def);
+    return {
+      value: def.id,
+      label: def.label,
+      desc: unlocked ? def.desc : `未解锁 · ${def.unlock?.hint ?? ""}`,
+      disabled: !unlocked,
+    };
+  });
+
   // 窗口打开时载入已保存的值，并查询开机自启动状态
   useEffect(() => {
     const loaded: Record<string, string> = {};
@@ -492,10 +499,10 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
             <OptionGroup
               name="theme-mode"
               value={theme}
-              options={THEME_OPTIONS}
+              options={themeOptions}
               onChange={(next) => {
                 void changeTheme(next as ThemeId);
-                const label = THEME_OPTIONS.find((o) => o.value === next)?.label ?? next;
+                const label = themeOptions.find((o) => o.value === next)?.label ?? next;
                 onToast(`主题已切换为「${label}」`);
               }}
             />

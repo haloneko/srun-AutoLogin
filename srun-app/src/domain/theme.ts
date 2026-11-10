@@ -1,8 +1,15 @@
 import { readSetting, writeSetting } from "@/domain/settings";
+import { readTriggers } from "@/domain/triggers";
+import type { TriggerValues } from "@/domain/triggers";
 
 export const THEME_KEY = "srun.theme";
 
 export type ColorScheme = "system" | "light" | "dark";
+
+export interface ThemeUnlockRule {
+  when: (values: TriggerValues) => boolean;
+  hint: string;
+}
 
 export type BackgroundId = string;
 
@@ -14,6 +21,7 @@ export interface ThemeDef {
   desc: string;
   colorScheme: ColorScheme;
   background: BackgroundId;
+  unlock?: ThemeUnlockRule;
 }
 
 export type ThemePluginMeta = Omit<ThemeDef, "background">;
@@ -60,14 +68,21 @@ export function resolveTheme(id: string | null | undefined): ThemeDef {
   return THEMES.find((t) => t.id === id) ?? FALLBACK;
 }
 
-/// 读取当前主题（未设置或值非法时回落）
+export function isThemeUnlocked(theme: ThemeDef): boolean {
+  return !theme.unlock || theme.unlock.when(readTriggers());
+}
+
+function pickUsable(theme: ThemeDef): ThemeDef {
+  return isThemeUnlocked(theme) ? theme : FALLBACK;
+}
+
 export function readTheme(): ThemeId {
-  return resolveTheme(readSetting(THEME_KEY)).id;
+  return pickUsable(resolveTheme(readSetting(THEME_KEY))).id;
 }
 
 /// 把主题应用到 `<html>`：写入 `data-theme`（配色）与 `data-bg`（背景）
 export function applyTheme(id: ThemeId) {
-  const theme = resolveTheme(id);
+  const theme = pickUsable(resolveTheme(id));
   const el = document.documentElement;
   if (theme.colorScheme === "system") {
     delete el.dataset.theme;
