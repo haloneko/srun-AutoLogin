@@ -32,7 +32,7 @@ export default function AboutPanel({ onToast }: AboutPanelProps) {
 
   useKonamiCode(() => {
     trigger("konami.entered");
-    onToast("隐藏指令已记录");
+    onToast("隐藏指令生效：已解锁主题「流星夜空」");
   });
 
   return (
