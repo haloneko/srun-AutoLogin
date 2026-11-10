@@ -53,6 +53,7 @@ export interface OptionItem {
   value: string;
   label: string;
   desc?: string;
+  disabled?: boolean;
 }
 
 interface OptionGroupProps {
@@ -69,12 +70,18 @@ export function OptionGroup({ name, value, options, columns = 3, onChange }: Opt
   return (
     <div className={`options options--cols-${columns}`}>
       {options.map((o) => (
-        <label key={o.value} className={`option${value === o.value ? " option--on" : ""}`}>
+        <label
+          key={o.value}
+          className={`option${value === o.value ? " option--on" : ""}${
+            o.disabled ? " option--locked" : ""
+          }`}
+        >
           <input
             type="radio"
             name={name}
             className="option__radio"
             checked={value === o.value}
+            disabled={o.disabled}
             onChange={() => onChange(o.value)}
           />
           <span className="option__label">{o.label}</span>

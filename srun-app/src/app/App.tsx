@@ -3,6 +3,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import HeroButton from "@/components/HeroButton/HeroButton";
+import ThemeLayer from "@/components/theme/ThemeLayer";
 import ToastStack from "@/components/Toast/ToastStack";
 import { IconGear, IconRefresh, IconTimeline } from "@/components/icons/Icons";
 import { useNetwork } from "@/hooks/useNetwork";
@@ -29,8 +30,7 @@ export default function App() {
     handleRefresh,
   } = useNetwork(showToast);
 
-  // 主题：应用已保存的值，并跟随设置窗口里做的修改
-  useThemeSync();
+  const theme = useThemeSync();
 
   // 启动时的非网络初始化：窗口显示（自启动补显）、自启动版本兼容
   useEffect(() => {
@@ -87,6 +87,7 @@ export default function App() {
 
   return (
     <div className="shell">
+      <ThemeLayer theme={theme} />
       <div className="topbar">
         <button
           type="button"

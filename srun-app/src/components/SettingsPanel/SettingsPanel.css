@@ -41,6 +41,22 @@
   background: color-mix(in srgb, var(--accent) 11%, transparent);
 }
 
+/* 「关于」与上面的配置分类隔开，暗示它不是同一类页面 */
+.settings-nav__item--about {
+  position: relative;
+  margin-top: 14px;
+}
+
+.settings-nav__item--about::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 4px;
+  right: 4px;
+  height: 1px;
+  background: var(--border);
+}
+
 /* ---- 右侧区段 ---- */
 .settings-section {
   padding-bottom: 20px;
@@ -65,6 +81,59 @@
   margin: 0 0 12px;
   font-size: 11.5px;
   line-height: 1.55;
+  color: var(--muted);
+}
+
+/* 关于是独立页面：切过去时右侧只留它自己 */
+.settings-panes--about > .settings-section:not(.about-section) {
+  display: none;
+}
+
+.about-subtitle {
+  margin: 16px 0 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.about-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.about-item {
+  display: grid;
+  grid-template-columns: 172px minmax(0, 1fr) 122px;
+  gap: 12px;
+  align-items: baseline;
+  padding: 7px 0;
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.about-item:first-child {
+  border-top: none;
+}
+
+.about-item__name {
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.about-item__desc {
+  color: var(--muted);
+}
+
+.about-item__license {
+  text-align: right;
+  color: var(--muted);
+}
+
+.about-note {
+  margin: 14px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
   color: var(--muted);
 }
 

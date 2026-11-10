@@ -151,6 +151,15 @@
   border: 4.5px solid var(--accent);
 }
 
+.option--locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.option--locked:hover {
+  border-color: var(--border);
+}
+
 .option__label {
   font-size: 13px;
   font-weight: 600;

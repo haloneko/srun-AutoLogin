@@ -1,30 +1,49 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
-import { applyTheme, readTheme, THEME_KEY, writeSetting } from "@/domain/settings";
-import type { ThemeMode } from "@/domain/settings";
+import { applyTheme, isThemeUnlocked, readTheme, resolveTheme, saveTheme } from "@/domain/theme";
+import type { ThemeId } from "@/domain/theme";
 
 /// 主题变更广播事件名：窗口之间用它保持外观一致
 export const THEME_EVENT = "theme-changed";
 
-export function useThemeSync() {
-  useEffect(() => {
-    applyTheme(readTheme());
-    let unlisten: (() => void) | undefined;
-    listen<ThemeMode>(THEME_EVENT, (event) => applyTheme(event.payload))
-      .then((fn) => {
-        unlisten = fn;
-      })
-      // 纯浏览器里调试（脱离 Tauri）时没有事件系统，忽略即可
-      .catch(() => {});
-    return () => unlisten?.();
-  }, []);
-}
+const subscribers = new Set<(theme: ThemeId) => void>();
 
-export async function changeTheme(mode: ThemeMode) {
-  writeSetting(THEME_KEY, mode);
-  applyTheme(mode);
+let listening: Promise<void> | undefined;
+function publish(theme: ThemeId) {
+  applyTheme(theme);
+  for (const notify of subscribers) notify(theme);
+}
+function ensureListening() {
+  if (listening) return;
+  listening = listen<ThemeId>(THEME_EVENT, (event) => publish(event.payload))
+    .then(() => undefined)
+    .catch(() => {
+      listening = undefined;
+    });
+}
+export function useThemeSync(): ThemeId {
+  const [theme, setTheme] = useState<ThemeId>(() => readTheme());
+
+  useEffect(() => {
+    const current = readTheme();
+    publish(current);
+    setTheme(current);
+
+    subscribers.add(setTheme);
+    ensureListening();
+    return () => {
+      subscribers.delete(setTheme);
+    };
+  }, []);
+
+  return theme;
+}
+export async function changeTheme(id: ThemeId) {
+  if (!isThemeUnlocked(resolveTheme(id))) return;
+  saveTheme(id);
+  publish(id);
   try {
-    await emit(THEME_EVENT, mode);
+    await emit(THEME_EVENT, id);
   } catch {
     /* 非 Tauri 环境（浏览器预览）忽略 */
   }

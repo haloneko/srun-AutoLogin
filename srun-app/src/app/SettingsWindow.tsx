@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import WindowFrame from "@/components/WindowFrame/WindowFrame";
 import SettingsPanel from "@/components/SettingsPanel/SettingsPanel";
+import ThemeLayer from "@/components/theme/ThemeLayer";
 import ToastStack from "@/components/Toast/ToastStack";
 import { useThemeSync } from "@/hooks/useThemeSync";
 import { useToasts } from "@/hooks/useToasts";
@@ -15,7 +16,7 @@ export default function SettingsWindow() {
   const { toasts, showToast, dismissToast } = useToasts();
 
   // 主题跟随设置，并在本窗口改动时广播给主窗口与历史窗口
-  useThemeSync();
+  const theme = useThemeSync();
 
   // Esc 关闭窗口
   useEffect(() => {
@@ -37,12 +38,15 @@ export default function SettingsWindow() {
   }
 
   return (
-    <WindowFrame
-      title="设置"
-      subtitle="账号与网络参数仅保存在本机"
-      overlay={<ToastStack toasts={toasts} onDismiss={dismissToast} />}
-    >
-      <SettingsPanel onToast={showToast} />
-    </WindowFrame>
+    <>
+      <ThemeLayer theme={theme} />
+      <WindowFrame
+        title="设置"
+        subtitle="账号与网络参数仅保存在本机"
+        overlay={<ToastStack toasts={toasts} onDismiss={dismissToast} />}
+      >
+        <SettingsPanel onToast={showToast} />
+      </WindowFrame>
+    </>
   );
 }

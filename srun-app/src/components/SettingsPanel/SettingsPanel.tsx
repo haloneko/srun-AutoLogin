@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   AC_ID_KEY,
@@ -15,12 +15,10 @@ import {
   readSetting,
   readSilentStart,
   readStartupMode,
-  readTheme,
   readWifiMode,
   SILENT_START_KEY,
   STARTUP_MODE_KEY,
   StartupMode,
-  ThemeMode,
   USERNAME_KEY,
   USER_AGENT_KEY,
   WIFI_MODE_KEY,
@@ -37,14 +35,13 @@ import {
   IconFolder,
 } from "@/components/icons/Icons";
 import { Field, OptionGroup, Switch } from "@/components/ui/Controls";
-import { changeTheme } from "@/hooks/useThemeSync";
+import type { OptionItem } from "@/components/ui/Controls";
+import AboutPanel from "./AboutPanel";
+import { changeTheme, useThemeSync } from "@/hooks/useThemeSync";
+import { useTriggers } from "@/hooks/useTriggers";
+import { isThemeUnlocked, THEMES } from "@/domain/theme";
+import type { ThemeId } from "@/domain/theme";
 import "./SettingsPanel.css";
-
-const THEME_OPTIONS: { value: ThemeMode; label: string; desc: string }[] = [
-  { value: "system", label: "跟随系统", desc: "根据系统外观自动切换" },
-  { value: "light", label: "浅色", desc: "始终使用浅色主题" },
-  { value: "dark", label: "深色", desc: "始终使用深色主题" },
-];
 
 const STARTUP_OPTIONS: { value: StartupMode; label: string; desc: string }[] = [
   { value: "auto", label: "自动连接", desc: "打开软件后自动登录" },
@@ -282,7 +279,7 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
   /// 所有文本字段的当前编辑值 / 「已保存」基线，以 localStorage key 为索引
   const [values, setValues] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, string>>({});
-  const [theme, setTheme] = useState<ThemeMode>("system");
+  const theme = useThemeSync();
   const [startupMode, setStartupMode] = useState<StartupMode>("manual");
   const [autostart, setAutostart] = useState(false);
   const [autostartLoading, setAutostartLoading] = useState(false);
@@ -291,6 +288,29 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
   const [wifiMode, setWifiMode] = useState<WifiMode>("auto");
   const [openingLogDir, setOpeningLogDir] = useState(false);
   const [active, setActive] = useState(NAV[0].id);
+  /// 「关于」是独立页面：切过去时右侧只渲染它
+  const [showAbout, setShowAbout] = useState(false);
+  /// 从关于页切回配置页时要滚到的区段
+  const pendingScroll = useRef<string | null>(null);
+
+  useEffect(() => {
+    const id = pendingScroll.current;
+    if (showAbout || !id) return;
+    pendingScroll.current = null;
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [showAbout]);
+
+  useTriggers();
+
+  const themeOptions: OptionItem[] = THEMES.map((def) => {
+    const unlocked = isThemeUnlocked(def);
+    return {
+      value: def.id,
+      label: def.label,
+      desc: unlocked ? def.desc : `未解锁 · ${def.unlock?.hint ?? ""}`,
+      disabled: !unlocked,
+    };
+  });
 
   // 窗口打开时载入已保存的值，并查询开机自启动状态
   useEffect(() => {
@@ -298,7 +318,6 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
     for (const f of TEXT_FIELDS) loaded[f.key] = readSetting(f.key) || f.defaultValue;
     setValues(loaded);
     setSaved({ ...loaded });
-    setTheme(readTheme());
     setStartupMode(readStartupMode());
     setSilentStart(readSilentStart());
     setWifiMode(readWifiMode());
@@ -373,7 +392,18 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
   /// 点击导航：滚动到对应区段（滚动容器是窗口主体）
   function goTo(id: string) {
     setActive(id);
+    if (showAbout) {
+      // 配置页被隐藏着，滚不动；先切回来，等渲染完再滚
+      pendingScroll.current = id;
+      setShowAbout(false);
+      return;
+    }
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function openAbout() {
+    setActive("about");
+    setShowAbout(true);
   }
 
   /// 按注册表渲染一组文本字段
@@ -409,9 +439,20 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
             {item.label}
           </button>
         ))}
+        <button
+          type="button"
+          className={`settings-nav__item settings-nav__item--about${
+            active === "about" ? " settings-nav__item--on" : ""
+          }`}
+          onClick={openAbout}
+        >
+          关于
+        </button>
       </nav>
 
-      <div className="settings-panes">
+      <div className={`settings-panes${showAbout ? " settings-panes--about" : ""}`}>
+        {showAbout && <AboutPanel onToast={onToast} />}
+
         <section className="settings-section" id="account">
           <h2 className="settings-section__title">账号</h2>
           <p className="settings-section__desc">用于校园网认证，仅保存在本机。</p>
@@ -492,12 +533,10 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
             <OptionGroup
               name="theme-mode"
               value={theme}
-              options={THEME_OPTIONS}
+              options={themeOptions}
               onChange={(next) => {
-                setTheme(next as ThemeMode);
-                // 保存 + 本窗口立即生效 + 广播给主窗口与历史窗口
-                void changeTheme(next as ThemeMode);
-                const label = THEME_OPTIONS.find((o) => o.value === next)?.label ?? next;
+                void changeTheme(next as ThemeId);
+                const label = themeOptions.find((o) => o.value === next)?.label ?? next;
                 onToast(`主题已切换为「${label}」`);
               }}
             />
