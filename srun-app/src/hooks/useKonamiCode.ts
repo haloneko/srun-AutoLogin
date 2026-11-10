@@ -43,30 +43,44 @@ function unlockScroll() {
 }
 
 
+function play(root: HTMLElement, frames: Keyframe[], duration: number) {
+  lockScroll();
+  root
+    .animate(frames, { duration, easing: "linear" })
+    .finished.catch(() => {})
+    .finally(unlockScroll);
+}
+
 function playFeedback(key: string) {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const root = document.querySelector<HTMLElement>(".wf-root");
   if (!root) return;
+
+  if (key === "enter") {
+    play(
+      root,
+      [
+        { transform: "rotate(0deg)", offset: 0, easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
+        { transform: "rotate(360deg)", offset: 1 },
+      ],
+      220,
+    );
+    return;
+  }
 
   const dir = SHAKE[key];
   const hit = dir
     ? `translate(${dir[0] * 28}px, ${dir[1] * 28}px) scale(1)`
     : "translate(0px, 0px) scale(0.95)";
 
-  const frames = [
-    { transform: "translate(0px, 0px) scale(1)", filter: "brightness(1)", offset: 0, easing: "cubic-bezier(0.1, 0.9, 0.2, 1)" },
-    { transform: hit, filter: "brightness(1.3)", offset: 0.38, easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
-    { transform: "translate(0px, 0px) scale(1)", filter: "brightness(1)", offset: 1 },
-  ];
-
-  lockScroll();
-  root
-    .animate(frames, {
-      duration: dir ? 190 : 150,
-      easing: "linear",
-    })
-    .finished.catch(() => {})
-    .finally(unlockScroll);
+  play(
+    root,
+    [
+      { transform: "translate(0px, 0px) scale(1)", filter: "brightness(1)", offset: 0, easing: "cubic-bezier(0.1, 0.9, 0.2, 1)" },
+      { transform: hit, filter: "brightness(1.3)", offset: 0.38, easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
+      { transform: "translate(0px, 0px) scale(1)", filter: "brightness(1)", offset: 1 },
+    ],140
+  );
 }
 
 export function useKonamiCode(onComplete: () => void) {
@@ -90,7 +104,7 @@ export function useKonamiCode(onComplete: () => void) {
       }
 
       progress += 1;
-      if (key !== "enter") playFeedback(key);
+      playFeedback(key);
       if (progress === SEQUENCE.length) {
         progress = 0;
         done.current();
