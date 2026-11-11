@@ -1,0 +1,105 @@
+.star-sky {
+  background: radial-gradient(125% 95% at 18% -10%, #16233c 0%, #0a1122 44%, #05070f 100%);
+}
+
+
+.star-sky__field {
+  position: absolute;
+  inset: 0 0 50% 0;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 0%, #000 62%, transparent 100%);
+}
+
+.star-sky__stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.2px 1.2px at 12% 22%, #ffffff, transparent 60%),
+    radial-gradient(1.6px 1.6px at 63% 14%, rgba(255, 255, 255, 0.95), transparent 60%),
+    radial-gradient(1.2px 1.2px at 38% 68%, rgba(226, 240, 255, 0.95), transparent 60%),
+    radial-gradient(1.4px 1.4px at 84% 48%, rgba(255, 255, 255, 0.9), transparent 60%),
+    radial-gradient(1px 1px at 26% 88%, rgba(255, 255, 255, 0.9), transparent 60%),
+    radial-gradient(1.3px 1.3px at 72% 82%, #ffffff, transparent 60%),
+    radial-gradient(1.1px 1.1px at 52% 44%, rgba(255, 255, 255, 0.85), transparent 60%),
+    radial-gradient(1.5px 1.5px at 17% 57%, rgba(255, 255, 255, 0.9), transparent 60%),
+    radial-gradient(1px 1px at 91% 26%, rgba(226, 240, 255, 0.9), transparent 60%),
+    radial-gradient(1.2px 1.2px at 4% 34%, #ffffff, transparent 60%),
+    radial-gradient(2.4px 2.4px at 45% 30%, rgba(255, 255, 255, 0.75), transparent 70%),
+    radial-gradient(2.2px 2.2px at 8% 62%, rgba(214, 231, 255, 0.6), transparent 70%);
+  background-size:
+    54px 54px,
+    78px 78px,
+    66px 66px,
+    96px 96px,
+    74px 74px,
+    108px 108px,
+    88px 88px,
+    122px 122px,
+    62px 62px,
+    100px 100px,
+    340px 340px,
+    420px 420px;
+  animation: star-sky-twinkle 6s ease-in-out infinite alternate;
+}
+
+.star-sky__stars--far {
+  background-image:
+    radial-gradient(0.8px 0.8px at 18% 38%, rgba(255, 255, 255, 0.6), transparent 60%),
+    radial-gradient(0.7px 0.7px at 56% 8%, rgba(214, 231, 255, 0.55), transparent 60%),
+    radial-gradient(0.9px 0.9px at 88% 66%, rgba(255, 255, 255, 0.5), transparent 60%),
+    radial-gradient(0.7px 0.7px at 34% 54%, rgba(255, 255, 255, 0.45), transparent 60%),
+    radial-gradient(0.8px 0.8px at 9% 74%, rgba(255, 255, 255, 0.5), transparent 60%),
+    radial-gradient(0.7px 0.7px at 72% 32%, rgba(214, 231, 255, 0.45), transparent 60%);
+  background-size:
+    42px 42px,
+    62px 62px,
+    84px 84px,
+    52px 52px,
+    70px 70px,
+    96px 96px;
+  opacity: 0.6;
+  animation-duration: 11s;
+}
+
+@keyframes star-sky-twinkle {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+:root[data-bg="stars"] {
+  background-color: #05070f;
+}
+
+:root[data-bg="stars"] body {
+  background: transparent;
+}
+
+:root[data-bg="stars"] .shell::before {
+  opacity: 0;
+}
+
+:root[data-bg="stars"] .wf-root {
+  background: transparent;
+}
+
+:root[data-bg="stars"] .wf-header,
+:root[data-bg="stars"] .wf-footer {
+  background: color-mix(in srgb, #0a1122 70%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+:root[data-bg="stars"] .panel {
+  background: color-mix(in srgb, #0f1626 86%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .star-sky__stars,
+  .star-sky__stars--far {
+    animation: none;
+  }
+}
