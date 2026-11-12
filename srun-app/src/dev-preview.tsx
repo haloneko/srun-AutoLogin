@@ -49,11 +49,13 @@ function SamplePanel() {
 
 function Preview() {
   return (
-    <div className="shell">
-      <main className="home">
-        <HeroButton status="success" onClick={() => {}} />
-        <SamplePanel />
-      </main>
+    <div className="window">
+      <div className="shell">
+        <main className="home">
+          <HeroButton status="success" onClick={() => {}} />
+          <SamplePanel />
+        </main>
+      </div>
     </div>
   );
 }
