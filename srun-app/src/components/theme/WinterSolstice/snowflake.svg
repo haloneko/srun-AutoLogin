@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="104" height="104" viewBox="-52 -52 104 104">
+  <!-- 雪花原稿：直接编辑或替换整个 SVG 即可，建议保持正方形画布和透明背景。
+       位置、大小、旋转及透明度由 index.tsx 统一控制。 -->
+  <defs>
+<g id="arm">
+  <!-- 从中心向外：小分支、大分支、小分支。 -->
+  <path d="M0 0 V-50
+M0-18 4-22 M0-18-4-22
+M0-27 9-36 M0-27-9-36
+M0-36 6-42 M0-36-6-42" />
+  <g fill="#c1e1eb" stroke="none">
+    <circle cy="-50" r="1.7" />
+    <circle cx="4" cy="-22" r="1.7" />
+    <circle cx="-4" cy="-22" r="1.7" />
+    <circle cx="9" cy="-36" r="1.7" />
+    <circle cx="-9" cy="-36" r="1.7" />
+    <circle cx="6" cy="-42" r="1.7" />
+    <circle cx="-6" cy="-42" r="1.7" />
+  </g>
+</g>
+  </defs>
+  <g fill="none" stroke="#c1e1eb" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">
+    <path
+      d="M0-8.08 6.12-14.78 5.71-5.71 14.78-6.12 8.08 0 14.78 6.12 5.71 5.71 6.12 14.78 0 8.08-6.12 14.78-5.71 5.71-14.78 6.12-8.08 0-14.78-6.12-5.71-5.71-6.12-14.78Z" />
+    <use href="#arm" />
+    <use href="#arm" transform="rotate(45)" />
+    <use href="#arm" transform="rotate(90)" />
+    <use href="#arm" transform="rotate(135)" />
+    <use href="#arm" transform="rotate(180)" />
+    <use href="#arm" transform="rotate(225)" />
+    <use href="#arm" transform="rotate(270)" />
+    <use href="#arm" transform="rotate(315)" />
+  </g>
+</svg>

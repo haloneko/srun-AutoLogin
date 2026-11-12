@@ -6,7 +6,7 @@ import {
   USERNAME_KEY,
   writeLastOnline,
 } from "@/domain/settings";
-import { trigger } from "@/domain/triggers";
+import { noteLogin } from "@/domain/triggers";
 import { clearTimer, readCredential, scheduleTimer } from "@/common/utils";
 import type { LoginResult, OnlineStatus, Status } from "@/common/types";
 import { statusReducer } from "@/domain/status";
@@ -167,7 +167,7 @@ export function useSession(
           status: { kind: "success", ip, msg: res.suc_msg || "登录成功" },
         });
         onToast("登录成功");
-        trigger("login.success");
+        noteLogin();
         // 网关数据同步有延迟：延迟 2s 再查询状态栏，离线则自动重查，避免状态卡片停在「离线」
         schedulePostLoginCheck();
       } else {

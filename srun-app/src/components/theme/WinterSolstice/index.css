@@ -1,0 +1,169 @@
+.solstice {
+  background: linear-gradient(180deg, #243e49 0%, #152b36 24%, #0d1c26 52%, #0b1821 100%);
+}
+
+.solstice__mist {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 85% 40% at 24% -9%, #b7dce735, transparent 80%),
+    radial-gradient(ellipse 54% 30% at 98% 5%, #94c5d41c, transparent 75%),
+    radial-gradient(ellipse 70% 50% at 0% 100%, #25485518, transparent 80%);
+}
+
+.solstice__frost {
+  position: absolute;
+  inset: 0 0 auto;
+  height: clamp(280px, 65vh, 480px);
+  mask-image: linear-gradient(#000 0%, #000 34%, #0009 65%, transparent 100%);
+}
+
+.solstice__crystal-flight {
+  position: absolute;
+  top: 0;
+  aspect-ratio: 1;
+  animation: solstice-crystal-fall var(--fall-duration) linear var(--fall-delay) infinite;
+}
+
+.solstice__crystal {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+  transform: translate(-50%, -50%) rotate(var(--turn));
+  animation: solstice-crystal-turn var(--turn-duration) ease-in-out var(--turn-delay) infinite;
+}
+
+.solstice__crystal-flight:nth-child(even) .solstice__crystal {
+  animation-direction: reverse;
+}
+
+@keyframes solstice-crystal-fall {
+  from { transform: translateY(-200px); }
+  to { transform: translateY(calc(clamp(280px, 65vh, 480px) + 200px)); }
+}
+
+@keyframes solstice-crystal-turn {
+  0% {
+    transform: translate(-50%, -50%) perspective(600px) rotateZ(var(--turn)) rotateX(12deg) rotateY(0deg);
+  }
+  25% {
+    transform: translate(calc(-50% + var(--drift)), -50%) perspective(600px) rotateZ(calc(var(--turn) + 90deg)) rotateX(-18deg) rotateY(90deg);
+  }
+  50% {
+    transform: translate(-50%, -50%) perspective(600px) rotateZ(calc(var(--turn) + 180deg)) rotateX(12deg) rotateY(180deg);
+  }
+  75% {
+    transform: translate(calc(-50% - var(--drift)), -50%) perspective(600px) rotateZ(calc(var(--turn) + 270deg)) rotateX(24deg) rotateY(270deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) perspective(600px) rotateZ(calc(var(--turn) + 360deg)) rotateX(12deg) rotateY(360deg);
+  }
+}
+
+.solstice__bokeh {
+  position: absolute;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, #d9eef5a6 0%, #c8e6ef40 40%, transparent 72%);
+  filter: blur(2px);
+}
+
+.solstice__glint {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  color: #e0f4ff;
+  background:
+    radial-gradient(ellipse 2% 50%, currentColor, transparent),
+    radial-gradient(ellipse 50% 2%, currentColor, transparent),
+    radial-gradient(circle, #d3efff80, transparent 48%);
+  opacity: 0.5;
+  animation: solstice-shimmer 7s ease-in-out infinite alternate;
+}
+
+.solstice__glint--one { left: 91%; top: 10%; }
+.solstice__glint--two { left: 5%; top: 42%; width: 24px; height: 24px; animation-delay: -3s; }
+.solstice__glint--three { left: 74%; top: 28%; width: 20px; height: 20px; animation-delay: -5s; }
+
+.solstice__snow {
+  position: absolute;
+  inset: -45px 0;
+  mask-image: linear-gradient(#000c, #0008 35%, #0003 75%, transparent);
+}
+
+.solstice__snowflake {
+  position: absolute;
+  border-radius: 50%;
+  background: #d5eaf2;
+  animation: solstice-fall var(--duration) linear var(--delay) infinite;
+}
+
+.solstice__snowflake--near {
+  filter: blur(1.5px);
+  background: #d5eaf2a6;
+}
+
+.solstice__shade {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 25%, transparent 25%, #040e1633 100%);
+}
+
+@keyframes solstice-fall {
+  from { transform: translate3d(-12px, -45px, 0); }
+  to { transform: translate3d(20px, 110px, 0); }
+}
+
+@keyframes solstice-shimmer {
+  from { opacity: 0.2; }
+  to { opacity: 0.55; }
+}
+
+:root[data-theme="dark"][data-bg="solstice"] {
+  background-color: #0b1821;
+  --accent: #91c5d9;
+  --accent-dark: #6ba8c0;
+  --glow: #91c5d914;
+  --bg: #0e1e28;
+  --card: #142a36;
+  --border: #a5d3e21c;
+  --line: #a5d3e214;
+  --text-2: #a2b9c6;
+  --muted: #8da7b6;
+}
+
+:root[data-bg="solstice"] body,
+:root[data-bg="solstice"] .wf-root {
+  background: transparent;
+}
+
+:root[data-bg="solstice"] .shell::before {
+  opacity: 0;
+}
+
+:root[data-bg="solstice"] .wf-header,
+:root[data-bg="solstice"] .wf-footer {
+  background: #10232e80;
+  backdrop-filter: blur(12px);
+}
+
+:root[data-bg="solstice"] .panel {
+  background: linear-gradient(145deg, #18323eae, #0e202bd9);
+  border-color: #b9dfed24;
+  box-shadow: inset 0 1px 0 #d0edf508, 0 16px 40px -24px #020a12b3;
+  backdrop-filter: blur(12px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .solstice__crystal-flight,
+  .solstice__crystal,
+  .solstice__snowflake,
+  .solstice__glint {
+    animation: none;
+  }
+
+  .solstice__crystal-flight {
+    top: var(--rest-top);
+  }
+}
