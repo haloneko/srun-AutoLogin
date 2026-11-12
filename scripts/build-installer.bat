@@ -7,7 +7,8 @@ rem  用法：双击运行，或 scripts\build-installer.bat
 rem ============================================
 
 set "ROOT=%~dp0.."
-set "BUNDLE=%ROOT%\srun-app\src-tauri\target\release\bundle"
+rem workspace 构建：安装包落在根目录的 target\release\bundle
+set "BUNDLE=%ROOT%\target\release\bundle"
 
 echo.
 echo ==== 打包安装包 (srun-app) ... ====

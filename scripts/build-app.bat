@@ -19,7 +19,8 @@ if errorlevel 1 (
 )
 popd
 
-set "APPEXE=%ROOT%\srun-app\src-tauri\target\release\srun.exe"
+rem workspace 构建：产物落在根目录的 target\release，名字取 crate 名
+set "APPEXE=%ROOT%\target\release\srun-app.exe"
 echo.
 echo 打包完成！
 echo   桌面 App: %APPEXE%
