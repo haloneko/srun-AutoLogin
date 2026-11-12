@@ -258,86 +258,53 @@ const CHILD_WINDOW_HEIGHT: f64 = 640.0;
 const CHILD_WINDOW_MIN_WIDTH: f64 = 720.0;
 const CHILD_WINDOW_MIN_HEIGHT: f64 = 480.0;
 
-/// 打开「网络使用历史」独立窗口 command：前端 `invoke("open_history_window")` 调用。
-///
-/// 窗口已存在（最小化或被遮挡）时直接唤起并聚焦，不重复创建；
-/// 历史界面需要横向空间展示 24 小时时间条，故用独立窗口而非应用内弹层。
-///
-/// **必须保持 `async`**：Windows 上 `WebviewWindowBuilder::build` 在同步 command（主线程）
-/// 中会死锁——主线程在这里等 WebView2 消息循环，而消息循环正被它自己挡住，
-/// 表现为新窗口白屏、连原生关闭按钮都无响应、其它 command 全部排队卡死。
-/// 异步 command 会挪到异步运行时线程，由 Tauri 把建窗动作派发回主线程执行，不再自锁。
-#[tauri::command]
-async fn open_history_window(app: AppHandle) -> Result<(), String> {
-    if let Some(win) = app.get_webview_window(HISTORY_WINDOW_LABEL) {
+fn open_child_window(app: &AppHandle, label: &str, title: &str) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window(label) {
         let _ = win.unminimize();
         let _ = win.show();
         let _ = win.set_focus();
         return Ok(());
     }
-    let mut builder = tauri::WebviewWindowBuilder::new(
-        &app,
-        HISTORY_WINDOW_LABEL,
-        tauri::WebviewUrl::App("index.html".into()),
-    )
-    .title("网络使用历史")
-    .inner_size(CHILD_WINDOW_WIDTH, CHILD_WINDOW_HEIGHT)
-    .min_inner_size(CHILD_WINDOW_MIN_WIDTH, CHILD_WINDOW_MIN_HEIGHT)
-    .center();
+
+    let mut builder =
+        tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::App("index.html".into()))
+            .title(title)
+            // 与主窗口一致：去掉系统标题栏，窗口按钮由前端 TitleBar 提供
+            .decorations(false)
+            .inner_size(CHILD_WINDOW_WIDTH, CHILD_WINDOW_HEIGHT)
+            .min_inner_size(CHILD_WINDOW_MIN_WIDTH, CHILD_WINDOW_MIN_HEIGHT)
+            .center();
+
     // 与主窗口一致使用应用图标（不设置则回退到系统默认图标）
     if let Some(icon) = app.default_window_icon() {
         builder = builder.icon(icon.clone()).map_err(|e| e.to_string())?;
     }
+
     match builder.build() {
         Ok(_) => {
-            log::info!("已打开网络使用历史窗口");
+            log::info!("已打开{title}窗口");
             Ok(())
         }
         // 连点两次时可能已被另一次调用创建：按「已打开」处理，不当成失败
         Err(e) => {
-            if app.get_webview_window(HISTORY_WINDOW_LABEL).is_some() {
+            if app.get_webview_window(label).is_some() {
                 Ok(())
             } else {
-                Err(format!("打开历史窗口失败: {e}"))
+                Err(format!("打开{title}窗口失败: {e}"))
             }
         }
     }
 }
 
+#[tauri::command]
+async fn open_history_window(app: AppHandle) -> Result<(), String> {
+    open_child_window(&app, HISTORY_WINDOW_LABEL, "网络使用历史")
+}
+
 const SETTINGS_WINDOW_LABEL: &str = "settings";
 #[tauri::command]
 async fn open_settings_window(app: AppHandle) -> Result<(), String> {
-    if let Some(win) = app.get_webview_window(SETTINGS_WINDOW_LABEL) {
-        let _ = win.unminimize();
-        let _ = win.show();
-        let _ = win.set_focus();
-        return Ok(());
-    }
-    let mut builder = tauri::WebviewWindowBuilder::new(
-        &app,
-        SETTINGS_WINDOW_LABEL,
-        tauri::WebviewUrl::App("index.html".into()),
-    )
-    .title("设置")
-    .inner_size(CHILD_WINDOW_WIDTH, CHILD_WINDOW_HEIGHT)
-    .min_inner_size(CHILD_WINDOW_MIN_WIDTH, CHILD_WINDOW_MIN_HEIGHT)
-    .center();
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone()).map_err(|e| e.to_string())?;
-    }
-    match builder.build() {
-        Ok(_) => {
-            log::info!("已打开设置窗口");
-            Ok(())
-        }
-        Err(e) => {
-            if app.get_webview_window(SETTINGS_WINDOW_LABEL).is_some() {
-                Ok(())
-            } else {
-                Err(format!("打开设置窗口失败: {e}"))
-            }
-        }
-    }
+    open_child_window(&app, SETTINGS_WINDOW_LABEL, "设置")
 }
 
 /// 关闭调用本命令的窗口：前端 `invoke("close_current_window")` 调用。
@@ -348,6 +315,41 @@ async fn open_settings_window(app: AppHandle) -> Result<(), String> {
 async fn close_current_window(window: tauri::WebviewWindow) -> Result<(), String> {
     log::info!("关闭窗口: {}", window.label());
     window.close().map_err(|e| format!("关闭窗口失败: {e}"))
+}
+#[tauri::command]
+async fn minimize_current_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window
+        .minimize()
+        .map_err(|e| format!("最小化窗口失败: {e}"))
+}
+#[tauri::command]
+async fn toggle_maximize_window(window: tauri::WebviewWindow) -> Result<bool, String> {
+    let maximized = window
+        .is_maximized()
+        .map_err(|e| format!("读取窗口状态失败: {e}"))?;
+    if maximized {
+        window
+            .unmaximize()
+            .map_err(|e| format!("还原窗口失败: {e}"))?;
+        Ok(false)
+    } else {
+        window
+            .maximize()
+            .map_err(|e| format!("最大化窗口失败: {e}"))?;
+        Ok(true)
+    }
+}
+
+#[tauri::command]
+async fn is_window_maximized(window: tauri::WebviewWindow) -> Result<bool, String> {
+    window
+        .is_maximized()
+        .map_err(|e| format!("读取窗口状态失败: {e}"))
+}
+
+#[tauri::command]
+async fn start_window_drag(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.start_dragging().map_err(|e| format!("拖动窗口失败: {e}"))
 }
 
 /// 用系统文件管理器打开目录。
@@ -492,7 +494,11 @@ pub fn run() {
             open_log_dir,
             open_history_window,
             open_settings_window,
-            close_current_window
+            close_current_window,
+            minimize_current_window,
+            toggle_maximize_window,
+            is_window_maximized,
+            start_window_drag
         ])
         .build(tauri::generate_context!())
         .expect("Tauri 应用启动失败")
