@@ -92,14 +92,7 @@ export function useSession(
       if (notify) onToast(s.online ? "状态已更新" : "状态已更新（离线）");
       return s;
     } catch (err) {
-      // 若是「未连接时自动连接」模式下主动跳过了切换，网关不可达属于预期内：
-      // 替换掉原始报错，避免用户以为自己哪里配错了。
-      const skipped = wifiSkipped.current;
-      setInfoError(
-        skipped
-          ? `当前连接的是「${skipped}」，不是校园网，已按设置跳过自动切换；需要登录校园网时点击上方按钮即可。`
-          : String(err),
-      );
+      setInfoError(String(err));
       if (notify) onToast(`刷新失败：${String(err)}`);
       return null;
     } finally {
