@@ -144,6 +144,51 @@
   color: var(--muted);
 }
 
+/* ---- 调试页：一键触发 ---- */
+.debug-actions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.debug-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+
+.debug-action:first-child {
+  border-top: none;
+}
+
+.debug-action__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.debug-action__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.debug-action__desc {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.debug-action__btn {
+  min-width: 44px;
+  padding: 5px 10px;
+  font-variant-numeric: tabular-nums;
+}
+
 .about-list {
   margin: 0;
   padding: 0;

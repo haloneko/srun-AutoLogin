@@ -3,11 +3,18 @@ import { getVersion } from "@tauri-apps/api/app";
 import { Field } from "@/components/ui/Controls";
 import { changeDebugMode } from "@/hooks/useDebugMode";
 import { useTriggers } from "@/hooks/useTriggers";
-import { resetTriggers } from "@/domain/triggers";
+import { resetTriggers, trigger } from "@/domain/triggers";
 
 interface DebugPanelProps {
   onToast: (msg: string) => void;
 }
+
+/// 可以手动触发的事件：想验证某个解锁条件时，不必等真实场景发生
+const TRIGGER_ACTIONS: { name: string; label: string; desc: string }[] = [
+  { name: "konami.entered", label: "隐藏指令", desc: "解锁主题「流星夜空」" },
+  { name: "login.success", label: "登录成功", desc: "累计一次成功登录" },
+  { name: "login.solstice", label: "冬至登录", desc: "解锁主题「冬至」" },
+];
 
 /// 调试页：只有敲开隐藏指令后才出现在导航里，用来查看运行环境与触发值
 export default function DebugPanel({ onToast }: DebugPanelProps) {
@@ -64,6 +71,28 @@ export default function DebugPanel({ onToast }: DebugPanelProps) {
           <dd>{navigator.userAgent}</dd>
         </div>
       </dl>
+
+      <h3 className="debug-subtitle">一键触发</h3>
+      <ul className="debug-actions">
+        {TRIGGER_ACTIONS.map((action) => (
+          <li className="debug-action" key={action.name}>
+            <span className="debug-action__text">
+              <span className="debug-action__label">{action.label}</span>
+              <span className="debug-action__desc">{action.desc}</span>
+            </span>
+            <button
+              type="button"
+              className="settings-btn debug-action__btn"
+              onClick={() => {
+                trigger(action.name);
+                onToast(`已手动触发「${action.label}」`);
+              }}
+            >
+              +1
+            </button>
+          </li>
+        ))}
+      </ul>
 
       <h3 className="debug-subtitle">触发值</h3>
       {entries.length ? (
