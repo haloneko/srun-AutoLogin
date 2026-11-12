@@ -37,7 +37,9 @@ import {
 import { Field, OptionGroup, Switch } from "@/components/ui/Controls";
 import type { OptionItem } from "@/components/ui/Controls";
 import AboutPanel from "./AboutPanel";
+import DebugPanel from "./DebugPanel";
 import { changeTheme, useThemeSync } from "@/hooks/useThemeSync";
+import { useDebugMode } from "@/hooks/useDebugMode";
 import { useTriggers } from "@/hooks/useTriggers";
 import { isThemeUnlocked, THEMES } from "@/domain/theme";
 import type { ThemeId } from "@/domain/theme";
@@ -61,6 +63,9 @@ const WIFI_OPTIONS: { value: WifiMode; label: string; desc: string }[] = [
     desc: "忽略当前网络，始终自动连接校园网 WiFi",
   },
 ];
+
+/// 右侧当前渲染什么：配置区段是长表单，关于与调试是各自独占一屏的独立页面
+type Page = "config" | "about" | "debug";
 
 /// 左侧导航：与右侧各区段的 id 一一对应，点击滚动到对应区段
 const NAV: { id: string; label: string }[] = [
@@ -288,17 +293,27 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
   const [wifiMode, setWifiMode] = useState<WifiMode>("auto");
   const [openingLogDir, setOpeningLogDir] = useState(false);
   const [active, setActive] = useState(NAV[0].id);
-  /// 「关于」是独立页面：切过去时右侧只渲染它
-  const [showAbout, setShowAbout] = useState(false);
-  /// 从关于页切回配置页时要滚到的区段
+  /// 右侧当前页：关于 / 调试切过去时只渲染它自己
+  const [page, setPage] = useState<Page>("config");
+  /// 从独立页面切回配置页时要滚到的区段
   const pendingScroll = useRef<string | null>(null);
+  /// 调试模式开着才在导航里露出「调试」入口
+  const debug = useDebugMode();
 
   useEffect(() => {
     const id = pendingScroll.current;
-    if (showAbout || !id) return;
+    if (page !== "config" || !id) return;
     pendingScroll.current = null;
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [showAbout]);
+  }, [page]);
+
+  /// 调试模式被关掉（包括在别的窗口关掉）时，调试页跟着退场
+  useEffect(() => {
+    if (debug || page !== "debug") return;
+    pendingScroll.current = NAV[0].id;
+    setPage("config");
+    setActive(NAV[0].id);
+  }, [debug, page]);
 
   useTriggers();
 
@@ -392,18 +407,19 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
   /// 点击导航：滚动到对应区段（滚动容器是窗口主体）
   function goTo(id: string) {
     setActive(id);
-    if (showAbout) {
+    if (page !== "config") {
       // 配置页被隐藏着，滚不动；先切回来，等渲染完再滚
       pendingScroll.current = id;
-      setShowAbout(false);
+      setPage("config");
       return;
     }
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function openAbout() {
-    setActive("about");
-    setShowAbout(true);
+  /// 切到独立页面（关于 / 调试）
+  function openPage(next: Page) {
+    setActive(next);
+    setPage(next);
   }
 
   /// 按注册表渲染一组文本字段
@@ -439,19 +455,31 @@ export default function SettingsPanel({ onToast }: SettingsPanelProps) {
             {item.label}
           </button>
         ))}
+        {debug && (
+          <button
+            type="button"
+            className={`settings-nav__item settings-nav__item--page${
+              active === "debug" ? " settings-nav__item--on" : ""
+            }`}
+            onClick={() => openPage("debug")}
+          >
+            调试
+          </button>
+        )}
         <button
           type="button"
           className={`settings-nav__item settings-nav__item--about${
             active === "about" ? " settings-nav__item--on" : ""
           }`}
-          onClick={openAbout}
+          onClick={() => openPage("about")}
         >
           关于
         </button>
       </nav>
 
-      <div className={`settings-panes${showAbout ? " settings-panes--about" : ""}`}>
-        {showAbout && <AboutPanel onToast={onToast} />}
+      <div className={`settings-panes${page !== "config" ? " settings-panes--solo" : ""}`}>
+        {page === "about" && <AboutPanel onToast={onToast} />}
+        {page === "debug" && <DebugPanel onToast={onToast} />}
 
         <section className="settings-section" id="account">
           <h2 className="settings-section__title">账号</h2>
