@@ -57,3 +57,21 @@ export function subscribeTriggers(notify: () => void): () => void {
   listeners.add(notify);
   return () => listeners.delete(notify);
 }
+
+/// 冬至
+function isWinterSolstice(date: Date): boolean {
+  return date.getMonth() === 11 && (date.getDate() === 21 || date.getDate() === 22);
+}
+
+/// 登录成功后调一次：这次登录算进哪些触发值由这里定，调用方不必关心解锁条件
+export function noteLogin(date = new Date()) {
+  const values = load();
+  const next: TriggerValues = {
+    ...values,
+    "login.success": (values["login.success"] ?? 0) + 1,
+  };
+  if (isWinterSolstice(date)) {
+    next["login.solstice"] = (values["login.solstice"] ?? 0) + 1;
+  }
+  commit(next);
+}
