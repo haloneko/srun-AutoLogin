@@ -42,7 +42,6 @@ export default function SettingsWindow() {
       <ThemeLayer theme={theme} />
       <WindowFrame
         title="设置"
-        subtitle="账号与网络参数仅保存在本机"
         overlay={<ToastStack toasts={toasts} onDismiss={dismissToast} />}
       >
         <SettingsPanel onToast={showToast} />
