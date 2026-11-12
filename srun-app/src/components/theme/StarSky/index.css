@@ -86,7 +86,6 @@
   background: transparent;
 }
 
-:root[data-bg="stars"] .wf-header,
 :root[data-bg="stars"] .wf-footer {
   background: color-mix(in srgb, #0a1122 70%, transparent);
   backdrop-filter: blur(10px);

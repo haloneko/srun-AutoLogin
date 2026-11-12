@@ -125,7 +125,6 @@
   background: transparent;
 }
 
-:root[data-bg="meteor"] .wf-header,
 :root[data-bg="meteor"] .wf-footer {
   background: color-mix(in srgb, #0a1122 70%, transparent);
   backdrop-filter: blur(10px);
