@@ -16,6 +16,7 @@
         "height": 560,
         "minWidth": 360,
         "minHeight": 520,
+        "decorations": false,
         "resizable": true,
         "center": true,
         "visible": false

@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import HeroButton from "@/components/HeroButton/HeroButton";
 import ThemeLayer from "@/components/theme/ThemeLayer";
 import ToastStack from "@/components/Toast/ToastStack";
+import TitleBar from "@/components/TitleBar/TitleBar";
 import { IconGear, IconRefresh, IconTimeline } from "@/components/icons/Icons";
 import { useNetwork } from "@/hooks/useNetwork";
 import { useThemeSync } from "@/hooks/useThemeSync";
@@ -86,94 +87,98 @@ export default function App() {
   }
 
   return (
-    <div className="shell">
-      <ThemeLayer theme={theme} />
-      <div className="topbar">
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={() => void openHistory()}
-          title="网络使用历史"
-          aria-label="网络使用历史"
-        >
-          <IconTimeline size={15} />
-        </button>
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={() => void openSettings()}
-          title="设置"
-          aria-label="设置"
-        >
-          <IconGear size={15} />
-        </button>
-        <button
-          type="button"
-          className={`icon-btn${refreshing ? " icon-btn--spin" : ""}`}
-          onClick={() => void handleRefresh()}
-          disabled={refreshing}
-          title="刷新状态"
-          aria-label="刷新状态"
-        >
-          <IconRefresh size={15} />
-        </button>
+    <div className="window">
+      <TitleBar />
+
+      <div className="shell">
+        <ThemeLayer theme={theme} />
+        <div className="topbar">
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => void openHistory()}
+            title="网络使用历史"
+            aria-label="网络使用历史"
+          >
+            <IconTimeline size={15} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => void openSettings()}
+            title="设置"
+            aria-label="设置"
+          >
+            <IconGear size={15} />
+          </button>
+          <button
+            type="button"
+            className={`icon-btn${refreshing ? " icon-btn--spin" : ""}`}
+            onClick={() => void handleRefresh()}
+            disabled={refreshing}
+            title="刷新状态"
+            aria-label="刷新状态"
+          >
+            <IconRefresh size={15} />
+          </button>
+        </div>
+        <ToastStack toasts={toasts} onDismiss={dismissToast} />
+
+        <main className="home">
+          <HeroButton
+            status={status.kind}
+            disabled={status.kind === "loading" || status.kind === "loggingOut"}
+            onClick={handleButtonClick}
+          />
+
+          <section className="panel" aria-label="网络状态">
+            {/* 两个主数字：在线时长 / 已用流量，第一眼就能读到 */}
+            <div className="panel__figures">
+              <div className="figure">
+                <span className="figure__value">
+                  {info ? formatDuration(info.online_seconds) : "—"}
+                </span>
+                <span className="figure__label">在线时长</span>
+              </div>
+              <span className="panel__rule" aria-hidden />
+              <div className="figure figure--end">
+                <span className="figure__value">
+                  {info ? formatBytes(info.total_bytes) : "—"}
+                </span>
+                <span className="figure__label">已用流量</span>
+              </div>
+            </div>
+
+            <dl className="facts">
+              <div className="fact">
+                <dt>账户</dt>
+                <dd title={info?.username || undefined}>{info?.username || "—"}</dd>
+              </div>
+              <div className="fact">
+                <dt>IP</dt>
+                <dd title={info?.ip || undefined}>{info?.ip || "—"}</dd>
+              </div>
+              <div className="fact">
+                <dt>WiFi</dt>
+                <dd title={wifi?.ssid ?? undefined}>{wifi?.ssid ?? "—"}</dd>
+              </div>
+              <div className="fact">
+                <dt>设备</dt>
+                <dd>{info ? info.online_devices : "—"}</dd>
+              </div>
+            </dl>
+
+            {wifi && wifiOnOther && (
+              <div className="wifi-hint">
+                <span className="wifi-hint__msg">
+                  「{wifi.ssid}」不是校园网「{targetSsid}」，点上方球体切换
+                </span>
+              </div>
+            )}
+            {infoError && <p className="panel__error">{infoError}</p>}
+          </section>
+        </main>
       </div>
-      <ToastStack toasts={toasts} onDismiss={dismissToast} />
-
-      <main className="home">
-        <HeroButton
-          status={status.kind}
-          disabled={status.kind === "loading" || status.kind === "loggingOut"}
-          onClick={handleButtonClick}
-        />
-
-        <section className="panel" aria-label="网络状态">
-          {/* 两个主数字：在线时长 / 已用流量，第一眼就能读到 */}
-          <div className="panel__figures">
-            <div className="figure">
-              <span className="figure__value">
-                {info ? formatDuration(info.online_seconds) : "—"}
-              </span>
-              <span className="figure__label">在线时长</span>
-            </div>
-            <span className="panel__rule" aria-hidden />
-            <div className="figure figure--end">
-              <span className="figure__value">
-                {info ? formatBytes(info.total_bytes) : "—"}
-              </span>
-              <span className="figure__label">已用流量</span>
-            </div>
-          </div>
-
-          <dl className="facts">
-            <div className="fact">
-              <dt>账户</dt>
-              <dd title={info?.username || undefined}>{info?.username || "—"}</dd>
-            </div>
-            <div className="fact">
-              <dt>IP</dt>
-              <dd title={info?.ip || undefined}>{info?.ip || "—"}</dd>
-            </div>
-            <div className="fact">
-              <dt>WiFi</dt>
-              <dd title={wifi?.ssid ?? undefined}>{wifi?.ssid ?? "—"}</dd>
-            </div>
-            <div className="fact">
-              <dt>设备</dt>
-              <dd>{info ? info.online_devices : "—"}</dd>
-            </div>
-          </dl>
-
-          {wifi && wifiOnOther && (
-            <div className="wifi-hint">
-              <span className="wifi-hint__msg">
-                「{wifi.ssid}」不是校园网「{targetSsid}」，点上方球体切换
-              </span>
-            </div>
-          )}
-          {infoError && <p className="panel__error">{infoError}</p>}
-        </section>
-      </main>
     </div>
   );
 }

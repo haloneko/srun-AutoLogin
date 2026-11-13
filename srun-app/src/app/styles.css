@@ -17,6 +17,7 @@
   --success: #0f9d76;
   --danger: #cf3352;
   --warn: #b0762a;
+  --titlebar-h: 32px;
   /* 浅色下阴影要薄：厚阴影会把白卡片压成「脏灰」 */
   --shadow-card: 0 1px 2px rgba(16, 24, 32, 0.04), 0 12px 28px -20px rgba(16, 24, 32, 0.25);
   --shadow-pop: 0 2px 10px -6px rgba(16, 24, 32, 0.22);
@@ -97,20 +98,25 @@ body {
   mask-image: radial-gradient(72% 62% at 50% 38%, #000 0%, transparent 78%);
 }
 
+.window {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
 .shell {
   position: relative;
-  min-height: 100vh;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* 顶部留出浮动工具栏的位置；上下留白收一点，避免最小尺寸下溢出出滚动条 */
   padding: 50px 20px 18px;
 }
 
 /* ===== 右上角工具栏：收成一颗胶囊，不再占满一行 ===== */
 .topbar {
   position: fixed;
-  top: 12px;
+  top: calc(var(--titlebar-h) + 10px);
   right: 12px;
   z-index: 10;
   display: flex;

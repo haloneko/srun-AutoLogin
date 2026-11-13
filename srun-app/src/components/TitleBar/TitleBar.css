@@ -1,0 +1,8 @@
+.titlebar {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  height: var(--titlebar-h, 32px);
+  user-select: none;
+}

@@ -1,0 +1,46 @@
+.wc {
+  display: flex;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+
+.wc__btn {
+  width: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: var(--text-2);
+  background: transparent;
+  border: 0;
+  cursor: default;
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+
+.wc__btn:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.wc__btn:active {
+  background: color-mix(in srgb, var(--text) 14%, transparent);
+}
+
+.wc__btn--close:hover {
+  color: #fff;
+  background: #c42b1c;
+}
+
+.wc__btn--close:active {
+  color: #fff;
+  background: #b02a1f;
+}
+
+.wc__glyph {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
