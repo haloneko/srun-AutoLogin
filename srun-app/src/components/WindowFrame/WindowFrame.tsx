@@ -21,16 +21,12 @@ export default function WindowFrame({
 }: WindowFrameProps) {
   return (
     <div className={`wf-root${footer ? " wf-root--with-footer" : ""}`}>
-      <TitleBar />
-      <header className="wf-header">
-        <div className="wf-header__titles">
-          <h1 className="wf-header__title">{title}</h1>
-          {subtitle && <p className="wf-header__sub">{subtitle}</p>}
-        </div>
-        {actions && <div className="wf-header__actions">{actions}</div>}
-      </header>
+      <TitleBar title={title} subtitle={subtitle} />
 
-      <main className="wf-body">{children}</main>
+      <main className="wf-body">
+        {actions && <div className="wf-actions">{actions}</div>}
+        {children}
+      </main>
 
       {footer && <footer className="wf-footer">{footer}</footer>}
       {overlay}

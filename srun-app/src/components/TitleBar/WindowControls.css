@@ -21,11 +21,17 @@
 
 .wc__btn:hover {
   color: var(--text);
-  background: color-mix(in srgb, var(--text) 8%, transparent);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
 }
 
 .wc__btn:active {
-  background: color-mix(in srgb, var(--text) 14%, transparent);
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+}
+
+/* 键盘聚焦时的描边：窗口按钮在标题栏里，系统不会代画焦点框 */
+.wc__btn:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -3px;
 }
 
 .wc__btn--close:hover {
@@ -36,6 +42,10 @@
 .wc__btn--close:active {
   color: #fff;
   background: #b02a1f;
+}
+
+.wc__btn--close:focus-visible {
+  outline-color: #fff;
 }
 
 .wc__glyph {
