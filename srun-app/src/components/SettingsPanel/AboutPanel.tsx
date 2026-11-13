@@ -1,11 +1,28 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
 import { useKonamiCode } from "@/hooks/useKonamiCode";
+import { changeDebugMode } from "@/hooks/useDebugMode";
 import { trigger } from "@/domain/triggers";
 
 interface AboutPanelProps {
   onToast: (msg: string) => void;
 }
+
+const KONAMI_SEQUENCE = [
+  "arrowup",
+  "arrowup",
+  "arrowdown",
+  "arrowdown",
+  "arrowleft",
+  "arrowright",
+  "arrowleft",
+  "arrowright",
+  "b",
+  "a",
+  "enter",
+];
+
+const DEBUG_SEQUENCE = [...KONAMI_SEQUENCE.slice(0, 8), ..."haloneko", "enter"];
 
 /// 直接用到的开源项目：名字 / 用途 / 许可证
 const OPEN_SOURCE = [
@@ -30,13 +47,17 @@ export default function AboutPanel({ onToast }: AboutPanelProps) {
       .catch(() => setVersion(""));
   }, []);
 
-  useKonamiCode(() => {
+  useKonamiCode(KONAMI_SEQUENCE, () => {
     trigger("konami.entered");
     onToast("隐藏指令生效：已解锁主题「流星夜空」");
   });
+  useKonamiCode(DEBUG_SEQUENCE, () => {
+    changeDebugMode(true);
+    onToast("调试模式已开启");
+  });
 
   return (
-    <section className="settings-section about-section">
+    <section className="settings-section settings-page about-section">
       <h2 className="settings-section__title">关于</h2>
       <p className="settings-section__desc">
         深澜校园网自动登录{version ? ` · v${version}` : ""}
