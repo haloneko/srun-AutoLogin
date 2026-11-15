@@ -41,12 +41,14 @@
   background: color-mix(in srgb, var(--accent) 11%, transparent);
 }
 
-/* 「关于」与上面的配置分类隔开，暗示它不是同一类页面 */
+/* 独立页面（调试 / 关于）与上面的配置分类隔开，暗示它们不是同一类 */
+.settings-nav__item--page,
 .settings-nav__item--about {
   position: relative;
   margin-top: 14px;
 }
 
+.settings-nav__item--page::before,
 .settings-nav__item--about::before {
   content: "";
   position: absolute;
@@ -55,6 +57,15 @@
   right: 4px;
   height: 1px;
   background: var(--border);
+}
+
+/* 调试入口就在「关于」上面：两个页面挨着，分隔线只画一条 */
+.settings-nav__item--page + .settings-nav__item--about {
+  margin-top: 2px;
+}
+
+.settings-nav__item--page + .settings-nav__item--about::before {
+  display: none;
 }
 
 /* ---- 右侧区段 ---- */
@@ -84,16 +95,98 @@
   color: var(--muted);
 }
 
-/* 关于是独立页面：切过去时右侧只留它自己 */
-.settings-panes--about > .settings-section:not(.about-section) {
+/* 独立页面（调试 / 关于）：切过去时右侧只留它自己 */
+.settings-panes--solo > .settings-section:not(.settings-page) {
   display: none;
 }
 
-.about-subtitle {
+.about-subtitle,
+.debug-subtitle {
   margin: 16px 0 6px;
   font-size: 12.5px;
   font-weight: 700;
   color: var(--text-2);
+}
+
+/* ---- 调试页：标签 + 值两列的信息表 ---- */
+.debug-list {
+  margin: 0;
+  padding: 0;
+}
+
+.debug-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 12px;
+  line-height: 1.55;
+  border-top: 1px solid var(--border);
+}
+
+.debug-row:first-child {
+  border-top: none;
+}
+
+.debug-row dt {
+  color: var(--muted);
+}
+
+.debug-row dd {
+  margin: 0;
+  color: var(--text-1);
+  word-break: break-word;
+}
+
+.debug-empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---- 调试页：一键触发 ---- */
+.debug-actions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.debug-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+
+.debug-action:first-child {
+  border-top: none;
+}
+
+.debug-action__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.debug-action__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.debug-action__desc {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.debug-action__btn {
+  min-width: 44px;
+  padding: 5px 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 .about-list {
