@@ -32,7 +32,7 @@
 - **系统托盘**：点 × 隐藏后台运行，托盘图标切换窗口 / 退出
 - **启动显示规则**：手动启动总是显示主界面；仅开机自启动时按「静默启动」设置决定驻留托盘还是显示窗口
 - **单例运行**：重复启动只唤起已有窗口，不重复开进程
-- **免安装 exe**：可直接运行 `srun.exe` 启动，无需安装
+- **免安装 exe**：可直接运行 `srun-app.exe` 启动，无需安装
 - **CLI 命令行工具**：登录 / 失败重试 / 倒计时退出，支持 `--dry-run` 离线调试与自定义服务器地址
 
 ## 适用学校
@@ -56,8 +56,12 @@ srun/
 │   │   ├── domain/         # 纯领域逻辑（settings / status / networkHistory）
 │   │   └── common/         # 公共类型与工具（types / utils）
 │   └── src-tauri/          # Tauri 后端（Rust）
+│       ├── src/            # 命令、窗口与托盘
+│       ├── capabilities/   # 窗口权限声明
+│       ├── icons/          # 应用图标
+│       └── tauri.conf.json # 窗口与打包配置
 ├── docs/                   # 更新日志
-├── scripts/                # 打包脚本（package / build-cli / build-app / build-installer）
+├── scripts/                # 打包脚本（package / build-cli / build-app / build-installer / collect）
 └── README.md
 ```
 
@@ -81,14 +85,15 @@ cargo run -p srun-cli -- --help
 
 ## 打包脚本
 
-`scripts\` 目录提供 4 个脚本：
+`scripts\` 目录提供 5 个脚本：
 
-| 脚本 | 作用 | 产物 |
-|---|---|---|
-| `package.bat` | 一键打包全部（调用下面 3 个） | CLI + App + 安装包 |
-| `build-cli.bat` | 只打包 CLI | `dist\srun-cli.exe` |
-| `build-app.bat` | 只打包桌面 App（免安装 exe） | `srun-app\src-tauri\target\release\srun-app.exe` |
-| `build-installer.bat` | 只打包安装包 | `bundle\nsis\*.exe`、`bundle\msi\*.msi` |
+| 脚本 | 作用 |
+|---|---|
+| `package.bat` | 一键打包全部（依次调用下面 4 个） |
+| `build-cli.bat` | 只打包 CLI |
+| `build-app.bat` | 只打包桌面 App（免安装 exe） |
+| `build-installer.bat` | 只打包安装包 |
+| `collect.bat` | 只归集已有产物，按版本号重命名 |
 
 ### 一键打包
 
@@ -98,7 +103,7 @@ cargo run -p srun-cli -- --help
 scripts\package.bat
 ```
 
-依次执行 `build-cli.bat` → `build-app.bat` → `build-installer.bat`，任一失败即中止。
+依次执行 `build-cli.bat` → `build-app.bat` → `build-installer.bat` → `collect.bat`，任一失败即中止。
 
 ### 单独打包
 
@@ -106,22 +111,22 @@ scripts\package.bat
 scripts\build-cli.bat          # 只打 CLI
 scripts\build-app.bat          # 只打桌面 App（免安装 exe，不生成安装包）
 scripts\build-installer.bat    # 只打安装包
+scripts\collect.bat            # 只把已有产物重命名归集
 ```
 
-### 产物位置
+### 产物
 
-| 产物 | 路径 |
-|---|---|
-| CLI 可执行文件 | `dist\srun-cli.exe` |
-| 桌面 App（免安装 exe） | `srun-app\src-tauri\target\release\bundle\srun-app.exe` |
-| 安装包 NSIS | `srun-app\src-tauri\target\release\bundle\nsis\*.exe` |
-| 安装包 MSI | `srun-app\src-tauri\target\release\bundle\msi\*.msi` |
+打包脚本运行后，会在代码同级目录下创建以版本号命名的文件夹（如 `1.5.0\`），里面是重命名好的发布文件：
 
-> 说明：`build-app.bat` 使用 `tauri build --no-bundle` 只出 exe；`build-installer.bat` 使用 `tauri build` 按 `tauri.conf.json` 的 `bundle.targets` 出安装包（当前为 `"all"`）。
+- `srun-cli_<版本>_windows_amd64.exe`
+- `srun-app.exe`
+- `srun_<版本>_x64-setup.exe` / `.msi`
+
 
 ## 打包配置说明
 
 - 安装包格式在 `srun-app\src-tauri\tauri.conf.json` 的 `bundle.targets` 配置，当前为 `"all"`（生成 NSIS + MSI）
+- 版本号以 `srun-app\src-tauri\Cargo.toml` 的 `version` 为准，安装包命名与归集目录都取自它，发版前先改这里
 - 想加快打包或只出单一格式，可改为 `"nsis"` 或 `"msi"`
 - 首次打包耗时较长（需编译依赖并下载 WiX/NSIS 工具链），之后会缓存
 
