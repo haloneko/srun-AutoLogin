@@ -22,7 +22,6 @@ export default function App() {
   const {
     status,
     info,
-    infoError,
     refreshing,
     wifi,
     wifiOnOther,
@@ -175,7 +174,6 @@ export default function App() {
                 </span>
               </div>
             )}
-            {infoError && <p className="panel__error">{infoError}</p>}
           </section>
         </main>
       </div>
