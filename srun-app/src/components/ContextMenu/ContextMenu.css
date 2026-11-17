@@ -1,0 +1,110 @@
+.ctx-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
+
+.ctx {
+  position: fixed;
+  z-index: 100;
+  min-width: 196px;
+  max-width: min(340px, calc(100vw - 16px));
+  padding: 4px;
+  background: color-mix(in srgb, var(--card) 94%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(14px);
+  outline: none;
+  animation: ctx-in 0.12s ease-out;
+  transform-origin: top left;
+}
+
+@keyframes ctx-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ctx__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-1);
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ctx__item:not(:disabled):hover,
+.ctx__item--active:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+}
+
+.ctx__item:disabled {
+  color: var(--muted);
+  opacity: 0.55;
+  cursor: default;
+}
+
+.ctx__item--danger:not(:disabled) {
+  color: var(--danger);
+}
+
+.ctx__item--danger:not(:disabled):hover,
+.ctx__item--danger.ctx__item--active:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+
+.ctx__icon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+}
+
+.ctx__label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* 右侧提示是次要信息：小一号、压暗，不跟主文案抢注意力 */
+.ctx__hint {
+  flex: none;
+  max-width: 132px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ctx__item--active:not(:disabled) .ctx__hint,
+.ctx__item:not(:disabled):hover .ctx__hint {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.ctx__sep {
+  height: 1px;
+  margin: 4px 6px;
+  border: 0;
+  background: var(--border);
+}

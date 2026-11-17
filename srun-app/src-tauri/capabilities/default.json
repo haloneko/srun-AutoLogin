@@ -3,5 +3,9 @@
   "identifier": "default",
   "description": "主窗口、网络历史窗口与设置窗口的默认能力（事件收发等；关闭窗口走应用自身的 command）",
   "windows": ["main", "history", "settings"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "clipboard-manager:allow-read-text",
+    "clipboard-manager:allow-write-text"
+  ]
 }

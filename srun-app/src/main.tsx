@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "@/app/App";
 import HistoryWindow from "@/app/HistoryWindow";
 import SettingsWindow from "@/app/SettingsWindow";
+import ContextMenuHost from "@/components/ContextMenu/ContextMenuHost";
 import { installContextMenu } from "@/app/contextMenu";
 import { installSelectionReset } from "@/app/selection";
 import "@/app/styles.css";
@@ -32,5 +33,6 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     ) : (
       <App />
     )}
+    <ContextMenuHost />
   </React.StrictMode>
 );
