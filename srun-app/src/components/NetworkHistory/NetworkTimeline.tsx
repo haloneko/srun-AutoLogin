@@ -153,10 +153,10 @@ export default function NetworkTimeline({ segments }: NetworkTimelineProps) {
             ))}
           </select>
         </label>
-        <span className="nt-toolbar__span" title="当前显示的时间段">
+        <span className="nt-toolbar__span" title="当前显示的时间段" data-selectable>
           {rangeLabel}
         </span>
-        <span className="nt-toolbar__meta">
+        <span className="nt-toolbar__meta" data-selectable>
           已记录 {formatSpan(grandTotal)} · 状态未知 {unknown > 0 ? formatSpan(unknown) : "无"}
         </span>
       </div>
@@ -239,15 +239,19 @@ export default function NetworkTimeline({ segments }: NetworkTimelineProps) {
               <article className="nt-card" key={s.ssid ?? "__offline"}>
                 <header className="nt-card__head">
                   <span className={swatchClass(s.ssid, colors)} />
-                  <span className="nt-card__name" title={s.ssid ?? "未连接"}>
+                  <span className="nt-card__name" title={s.ssid ?? "未连接"} data-selectable>
                     {s.ssid ?? "未连接"}
                   </span>
                   {s.ssid !== null && s.ssid === campusSsid && (
                     <span className="nt-card__tag">校园网</span>
                   )}
                 </header>
-                <div className="nt-card__time">{formatSpan(s.total)}</div>
-                <div className="nt-card__meta">占比 {pct}%</div>
+                <div className="nt-card__time" data-selectable>
+                  {formatSpan(s.total)}
+                </div>
+                <div className="nt-card__meta" data-selectable>
+                  占比 {pct}%
+                </div>
                 <div className="nt-card__bar">
                   <span
                     className={swatchClass(s.ssid, colors)}

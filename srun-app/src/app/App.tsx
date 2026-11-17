@@ -134,14 +134,14 @@ export default function App() {
             {/* 两个主数字：在线时长 / 已用流量，第一眼就能读到 */}
             <div className="panel__figures">
               <div className="figure">
-                <span className="figure__value">
+                <span className="figure__value" data-selectable>
                   {info ? formatDuration(info.online_seconds) : "—"}
                 </span>
                 <span className="figure__label">在线时长</span>
               </div>
               <span className="panel__rule" aria-hidden />
               <div className="figure figure--end">
-                <span className="figure__value">
+                <span className="figure__value" data-selectable>
                   {info ? formatBytes(info.total_bytes) : "—"}
                 </span>
                 <span className="figure__label">已用流量</span>
@@ -151,25 +151,31 @@ export default function App() {
             <dl className="facts">
               <div className="fact">
                 <dt>账户</dt>
-                <dd title={info?.username || undefined}>{info?.username || "—"}</dd>
+                <dd data-selectable title={info?.username || undefined}>
+                  {info?.username || "—"}
+                </dd>
               </div>
               <div className="fact">
                 <dt>IP</dt>
-                <dd title={info?.ip || undefined}>{info?.ip || "—"}</dd>
+                <dd data-selectable title={info?.ip || undefined}>
+                  {info?.ip || "—"}
+                </dd>
               </div>
               <div className="fact">
                 <dt>WiFi</dt>
-                <dd title={wifi?.ssid ?? undefined}>{wifi?.ssid ?? "—"}</dd>
+                <dd data-selectable title={wifi?.ssid ?? undefined}>
+                  {wifi?.ssid ?? "—"}
+                </dd>
               </div>
               <div className="fact">
                 <dt>设备</dt>
-                <dd>{info ? info.online_devices : "—"}</dd>
+                <dd data-selectable>{info ? info.online_devices : "—"}</dd>
               </div>
             </dl>
 
             {wifi && wifiOnOther && (
               <div className="wifi-hint">
-                <span className="wifi-hint__msg">
+                <span className="wifi-hint__msg" data-selectable>
                   「{wifi.ssid}」不是校园网「{targetSsid}」，点上方球体切换
                 </span>
               </div>

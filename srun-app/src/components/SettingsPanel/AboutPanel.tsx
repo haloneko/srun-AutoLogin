@@ -59,7 +59,7 @@ export default function AboutPanel({ onToast }: AboutPanelProps) {
   return (
     <section className="settings-section settings-page about-section">
       <h2 className="settings-section__title">关于</h2>
-      <p className="settings-section__desc">
+      <p className="settings-section__desc" data-selectable>
         深澜校园网自动登录{version ? ` · v${version}` : ""}
       </p>
 
