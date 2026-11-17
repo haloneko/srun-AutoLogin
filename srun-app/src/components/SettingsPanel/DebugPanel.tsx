@@ -60,15 +60,15 @@ export default function DebugPanel({ onToast }: DebugPanelProps) {
       <dl className="debug-list">
         <div className="debug-row">
           <dt>应用版本</dt>
-          <dd>{version || "未获取到"}</dd>
+          <dd data-selectable>{version || "未获取到"}</dd>
         </div>
         <div className="debug-row">
           <dt>窗口尺寸</dt>
-          <dd>{viewport}</dd>
+          <dd data-selectable>{viewport}</dd>
         </div>
         <div className="debug-row">
           <dt>运行内核</dt>
-          <dd>{navigator.userAgent}</dd>
+          <dd data-selectable>{navigator.userAgent}</dd>
         </div>
       </dl>
 
@@ -100,7 +100,7 @@ export default function DebugPanel({ onToast }: DebugPanelProps) {
           {entries.map(([name, value]) => (
             <div className="debug-row" key={name}>
               <dt>{name}</dt>
-              <dd>{value}</dd>
+              <dd data-selectable>{value}</dd>
             </div>
           ))}
         </dl>

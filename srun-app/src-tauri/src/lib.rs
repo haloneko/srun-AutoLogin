@@ -440,6 +440,7 @@ pub fn run() {
                 show_main_window(app);
             }
         }))
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             // 先初始化文件日志，再执行后续流程，保证所有日志都能落盘
             if let Ok(log_dir) = app.path().app_log_dir() {

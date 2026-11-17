@@ -13,7 +13,9 @@ export default function ToastStack({ toasts, onDismiss }: ToastStackProps) {
     <div className="toast-stack" role="status" aria-live="polite">
       {toasts.map((t) => (
         <div key={t.id} className="toast">
-          <span className="toast__msg">{t.msg}</span>
+          <span className="toast__msg" data-selectable>
+            {t.msg}
+          </span>
           <button
             type="button"
             className="toast__close"

@@ -4,7 +4,13 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "@/app/App";
 import HistoryWindow from "@/app/HistoryWindow";
 import SettingsWindow from "@/app/SettingsWindow";
+import ContextMenuHost from "@/components/ContextMenu/ContextMenuHost";
+import { installContextMenu } from "@/app/contextMenu";
+import { installSelectionReset } from "@/app/selection";
 import "@/app/styles.css";
+
+installSelectionReset();
+installContextMenu();
 
 /// 当前窗口 label：主窗口、历史窗口、设置窗口共用同一份前端产物，按此分流渲染。
 /// 纯浏览器打开（脱离 Tauri）时按主窗口处理，方便调试。
@@ -27,5 +33,6 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     ) : (
       <App />
     )}
+    <ContextMenuHost />
   </React.StrictMode>
 );

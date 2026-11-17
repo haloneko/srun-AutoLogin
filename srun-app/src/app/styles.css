@@ -82,6 +82,18 @@ body {
   background:
     radial-gradient(120% 90% at 50% -20%, var(--glow) 0%, transparent 58%),
     var(--bg);
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+[data-selectable] {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 
 /* 仪器面板的栅格纹理：极淡，只在中心区域显影 */
