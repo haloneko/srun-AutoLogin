@@ -2,6 +2,9 @@
 //!
 //! 复用 `srun-core` 完成登录流程，通过 Tauri command 暴露给 React 前端。
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
+
 use serde::Deserialize;
 use serde_json::Value;
 use srun_core::http::SrunHttp;
@@ -17,24 +20,79 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{AppHandle, Manager};
 use tauri_plugin_autostart::MacosLauncher;
 
-/// 显示并聚焦主窗口
+const MAIN_WINDOW_LABEL: &str = "main";
+static QUITTING: AtomicBool = AtomicBool::new(false);
+const IDLE_UNLOAD_MS: u64 = 30_000;
+fn focus_window(win: &tauri::WebviewWindow) {
+    let _ = win.show();
+    let _ = win.unminimize();
+    let _ = win.set_focus();
+}
+fn build_main_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String> {
+    let config = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|w| w.label == MAIN_WINDOW_LABEL)
+        .cloned()
+        .ok_or_else(|| "找不到主窗口配置".to_string())?;
+    tauri::WebviewWindowBuilder::from_config(app, &config)
+        .and_then(|builder| builder.build())
+        .map_err(|e| e.to_string())
+}
+
 fn show_main_window(app: &AppHandle) {
-    if let Some(win) = app.get_webview_window("main") {
-        let _ = win.show();
-        let _ = win.unminimize();
-        let _ = win.set_focus();
+    match app.get_webview_window(MAIN_WINDOW_LABEL) {
+        Some(win) => focus_window(&win),
+        None => match build_main_window(app) {
+            Ok(win) => {
+                log::info!("主窗口已重建");
+                focus_window(&win);
+            }
+            Err(e) => log::error!("重建主窗口失败: {e}"),
+        },
     }
 }
 
 /// 托盘左键单击：切换主窗口显示 / 隐藏
 fn toggle_main_window(app: &AppHandle) {
-    if let Some(win) = app.get_webview_window("main") {
-        if win.is_visible().unwrap_or(false) {
+    match app.get_webview_window(MAIN_WINDOW_LABEL) {
+        Some(win) if win.is_visible().unwrap_or(false) => {
             let _ = win.hide();
-        } else {
-            show_main_window(app);
+            schedule_idle_unload(app);
         }
+        Some(win) => focus_window(&win),
+        // 窗口已被空闲卸载：直接重建
+        None => show_main_window(app),
     }
+}
+
+fn schedule_idle_unload(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(IDLE_UNLOAD_MS));
+        let handle = app.clone();
+        // 窗口的创建与销毁都必须在主线程做
+        if let Err(e) = app.run_on_main_thread(move || {
+            let Some(win) = handle.get_webview_window(MAIN_WINDOW_LABEL) else {
+                return;
+            };
+            // 计时期间被唤回过就不动它
+            if win.is_visible().unwrap_or(true) {
+                return;
+            }
+            log::info!(
+                "主窗口已隐藏 {}s，卸载 WebView 释放内存",
+                IDLE_UNLOAD_MS / 1000
+            );
+            if let Err(e) = win.destroy() {
+                log::warn!("卸载主窗口失败: {e}");
+            }
+        }) {
+            log::warn!("调度主窗口卸载失败: {e}");
+        }
+    });
 }
 
 /// 构建系统托盘：左键切换窗口，右键菜单可显示主界面 / 退出
@@ -49,7 +107,10 @@ fn setup_tray(app: &tauri::App) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "show" => show_main_window(app),
-            "quit" => app.exit(0),
+            "quit" => {
+                QUITTING.store(true, Ordering::SeqCst);
+                app.exit(0);
+            }
             _ => {}
         })
         .on_tray_icon_event(|tray, event| {
@@ -469,15 +530,18 @@ pub fn run() {
             // 开机自启动（带 --silent）则不在此显示，交由前端按「静默启动」设置决定。
             if !is_autostart_launch_impl() {
                 show_main_window(app.handle());
+            } else {
+                schedule_idle_unload(app.handle());
             }
             Ok(())
         })
         .on_window_event(|window, event| {
             // 仅主窗口点 × 时隐藏到托盘后台运行；历史窗口等辅助窗口允许真正关闭
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" {
+                if window.label() == MAIN_WINDOW_LABEL {
                     let _ = window.hide();
                     api.prevent_close();
+                    schedule_idle_unload(window.app_handle());
                 }
             }
         })
@@ -504,10 +568,14 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("Tauri 应用启动失败")
         .run(|_app, event| {
-            // 正常退出（托盘「退出」/ 系统关机请求）：闭合当前区间后落盘，
-            // 避免这次退出在下次启动时被当成崩溃补记（不写 recovered 记录）
-            if matches!(event, tauri::RunEvent::Exit) {
-                network_history::shutdown();
+            match event {
+                tauri::RunEvent::ExitRequested { api, .. } => {
+                    if !QUITTING.load(Ordering::SeqCst) {
+                        api.prevent_exit();
+                    }
+                }
+                tauri::RunEvent::Exit => network_history::shutdown(),
+                _ => {}
             }
         });
 }

@@ -6,6 +6,7 @@ import ThemeLayer from "@/components/theme/ThemeLayer";
 import ToastStack from "@/components/Toast/ToastStack";
 import { IconRefresh, IconTrash } from "@/components/icons/Icons";
 import { useNetworkHistory } from "@/hooks/useNetworkHistory";
+import { usePageVisible } from "@/hooks/usePageVisible";
 import { useThemeSync } from "@/hooks/useThemeSync";
 import { useToasts } from "@/hooks/useToasts";
 
@@ -25,12 +26,14 @@ export default function HistoryWindow() {
 
   // 主题跟随设置，并在设置窗口改动时同步
   const theme = useThemeSync();
+  const visible = usePageVisible();
 
   // 兜底刷新（首次拉取由 hook 完成）
   useEffect(() => {
+    if (!visible) return;
     const id = window.setInterval(() => void reload(), AUTO_RELOAD_MS);
     return () => window.clearInterval(id);
-  }, [reload]);
+  }, [reload, visible]);
 
   // Esc 关闭窗口
   useEffect(() => {
