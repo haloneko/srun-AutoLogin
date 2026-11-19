@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { closeCurrentWindow } from "@/common/window";
 import "./WindowControls.css";
 
 /// 标题栏上的窗口按钮：最小化 / 最大化·还原 / 关闭，尺寸与悬停反馈对齐系统标题栏。
@@ -62,7 +63,7 @@ export default function WindowControls() {
   }
 
   function close() {
-    invoke("close_current_window").catch(() => {});
+    void closeCurrentWindow();
   }
 
   return (

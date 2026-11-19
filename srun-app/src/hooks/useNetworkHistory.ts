@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { HISTORY_DAYS } from "@/domain/networkHistory";
+import { usePageVisible } from "@/hooks/usePageVisible";
 import type { NetworkSegment } from "@/common/types";
 
 const LIVE_TICK_MS = 1_000;
@@ -76,12 +77,14 @@ export function useNetworkHistory(onToast: (msg: string) => void): NetworkHistor
     return () => unlisten?.();
   }, [reload]);
 
+  const visible = usePageVisible();
   const ongoing = useMemo(() => hasOngoing(data, syncedAt), [data, syncedAt]);
   useEffect(() => {
-    if (!ongoing) return;
+    if (!ongoing || !visible) return;
+    setNow(Date.now());
     const id = window.setInterval(() => setNow(Date.now()), LIVE_TICK_MS);
     return () => window.clearInterval(id);
-  }, [ongoing]);
+  }, [ongoing, visible]);
 
   const segments = useMemo(
     () => (ongoing ? advanceOngoing(data, now) : data),

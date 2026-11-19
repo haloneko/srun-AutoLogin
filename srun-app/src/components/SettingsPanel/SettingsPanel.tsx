@@ -38,7 +38,8 @@ import { Field, OptionGroup, Switch } from "@/components/ui/Controls";
 import type { OptionItem } from "@/components/ui/Controls";
 import AboutPanel from "./AboutPanel";
 import DebugPanel from "./DebugPanel";
-import { changeTheme, useThemeSync } from "@/hooks/useThemeSync";
+import { changeTheme } from "@/hooks/useThemeSync";
+import { useWindowTheme, useWindowToast } from "@/components/WindowShell/WindowShell";
 import { useDebugMode } from "@/hooks/useDebugMode";
 import { useTriggers } from "@/hooks/useTriggers";
 import { isThemeUnlocked, THEMES } from "@/domain/theme";
@@ -275,16 +276,11 @@ function SettingTextField({
   );
 }
 
-interface SettingsPanelProps {
-  onToast: (msg: string) => void;
-}
-
-/// 设置项主体：左侧分类导航 + 右侧表单，窗口外壳由 `SettingsWindow` 提供。
-export default function SettingsPanel({ onToast }: SettingsPanelProps) {
-  /// 所有文本字段的当前编辑值 / 「已保存」基线，以 localStorage key 为索引
+export default function SettingsPanel() {
+  const onToast = useWindowToast();
+  const theme = useWindowTheme();
   const [values, setValues] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, string>>({});
-  const theme = useThemeSync();
   const [startupMode, setStartupMode] = useState<StartupMode>("manual");
   const [autostart, setAutostart] = useState(false);
   const [autostartLoading, setAutostartLoading] = useState(false);
