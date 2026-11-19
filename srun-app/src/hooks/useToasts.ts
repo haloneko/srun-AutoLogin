@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ToastItem } from "@/common/types";
 
 /// 条形通知停留时长（ms），与进度条动画时长一致
@@ -9,17 +9,17 @@ export function useToasts() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const toastId = useRef(0);
 
-  function showToast(msg: string) {
+  const showToast = useCallback((msg: string) => {
     const id = ++toastId.current;
     setToasts((prev) => [{ id, msg }, ...prev]);
     window.setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, TOAST_DURATION);
-  }
+  }, []);
 
-  function dismissToast(id: number) {
+  const dismissToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  }
+  }, []);
 
   return { toasts, showToast, dismissToast };
 }

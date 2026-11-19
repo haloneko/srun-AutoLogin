@@ -3,13 +3,11 @@ import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import HeroButton from "@/components/HeroButton/HeroButton";
-import ThemeLayer from "@/components/theme/ThemeLayer";
 import ToastStack from "@/components/Toast/ToastStack";
 import TitleBar from "@/components/TitleBar/TitleBar";
 import { IconGear, IconRefresh, IconTimeline } from "@/components/icons/Icons";
+import { useWindowChrome } from "@/components/WindowShell/WindowShell";
 import { useNetwork } from "@/hooks/useNetwork";
-import { useThemeSync } from "@/hooks/useThemeSync";
-import { useToasts } from "@/hooks/useToasts";
 import {
   readAutostartVersion,
   readSilentStart,
@@ -18,7 +16,7 @@ import {
 import { formatBytes, formatDuration } from "@/common/utils";
 
 export default function App() {
-  const { toasts, showToast, dismissToast } = useToasts();
+  const { toasts, showToast, dismissToast } = useWindowChrome();
   const {
     status,
     info,
@@ -29,8 +27,6 @@ export default function App() {
     handleButtonClick,
     handleRefresh,
   } = useNetwork(showToast);
-
-  const theme = useThemeSync();
 
   // 启动时的非网络初始化：窗口显示（自启动补显）、自启动版本兼容
   useEffect(() => {
@@ -90,7 +86,6 @@ export default function App() {
       <TitleBar />
 
       <div className="shell">
-        <ThemeLayer theme={theme} />
         <div className="topbar">
           <button
             type="button"

@@ -1,10 +1,12 @@
 import React from "react";
+import type { ComponentType } from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "@/app/App";
 import HistoryWindow from "@/app/HistoryWindow";
 import SettingsWindow from "@/app/SettingsWindow";
 import ContextMenuHost from "@/components/ContextMenu/ContextMenuHost";
+import WindowShell from "@/components/WindowShell/WindowShell";
 import { installContextMenu } from "@/app/contextMenu";
 import { installSelectionReset } from "@/app/selection";
 import "@/app/styles.css";
@@ -22,17 +24,19 @@ function windowLabel(): string {
   }
 }
 
-const label = windowLabel();
+const ROUTES: Record<string, { Component: ComponentType; closeOnEsc: boolean }> = {
+  main: { Component: App, closeOnEsc: false },
+  history: { Component: HistoryWindow, closeOnEsc: true },
+  settings: { Component: SettingsWindow, closeOnEsc: true },
+};
+
+const route = ROUTES[windowLabel()] ?? ROUTES.main;
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    {label === "history" ? (
-      <HistoryWindow />
-    ) : label === "settings" ? (
-      <SettingsWindow />
-    ) : (
-      <App />
-    )}
+    <WindowShell closeOnEsc={route.closeOnEsc}>
+      <route.Component />
+    </WindowShell>
     <ContextMenuHost />
   </React.StrictMode>
 );
