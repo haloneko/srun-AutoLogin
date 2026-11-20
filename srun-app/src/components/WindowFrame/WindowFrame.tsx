@@ -8,21 +8,14 @@ interface WindowFrameProps {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
-  footer?: ReactNode;
   children: ReactNode;
 }
 
-export default function WindowFrame({
-  title,
-  subtitle,
-  actions,
-  footer,
-  children,
-}: WindowFrameProps) {
+export default function WindowFrame({ title, subtitle, actions, children }: WindowFrameProps) {
   const { toasts, dismissToast } = useWindowChrome();
 
   return (
-    <div className={`wf-root${footer ? " wf-root--with-footer" : ""}`}>
+    <div className="wf-root">
       <TitleBar title={title} subtitle={subtitle} />
 
       <main className="wf-body">
@@ -30,7 +23,6 @@ export default function WindowFrame({
         {children}
       </main>
 
-      {footer && <footer className="wf-footer">{footer}</footer>}
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </div>
   );

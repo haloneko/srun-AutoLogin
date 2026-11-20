@@ -12,11 +12,6 @@
   bottom: 14px;
 }
 
-/* 有页脚时上抬，避免压在页脚上 */
-.wf-root--with-footer .toast-stack {
-  bottom: 54px;
-}
-
 .wf-actions {
   display: flex;
   align-items: center;
@@ -85,26 +80,6 @@
   flex: 1;
   overflow-y: auto;
   padding: 20px 22px 24px;
-}
-
-.wf-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 9px 22px;
-  font-size: 11px;
-  color: var(--muted);
-  background: var(--card);
-  border-top: 1px solid var(--border);
-}
-
-.wf-footer__note {
-  min-width: 0;
-}
-
-.wf-footer__hint {
-  flex-shrink: 0;
 }
 
 /* ---- 空状态 ---- */

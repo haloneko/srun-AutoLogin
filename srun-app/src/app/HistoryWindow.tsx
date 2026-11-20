@@ -58,12 +58,6 @@ export default function HistoryWindow() {
           </button>
         </>
       }
-      footer={
-        <>
-          <span className="wf-footer__note">实时记录中…</span>
-          <span className="wf-footer__hint">滚轮缩放 · 左键拖拽或滑动条平移</span>
-        </>
-      }
     >
       {loading ? (
         <p className="wf-empty">正在读取…</p>
