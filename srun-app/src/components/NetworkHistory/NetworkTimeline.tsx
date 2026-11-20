@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
+import type { NetworkSegment } from "@/common/types";
 import {
   buildTicks,
   buildTrack,
@@ -9,260 +11,333 @@ import {
   formatClock,
   formatSpan,
   HISTORY_DAYS,
-  segmentTitle,
   totals,
 } from "@/domain/networkHistory";
-import type { TrackSegment } from "@/domain/networkHistory";
 import { readWifiSsid } from "@/domain/settings";
-import type { NetworkSegment } from "@/common/types";
+import { IconRefresh } from "@/components/icons/Icons";
 import "./NetworkTimeline.css";
 
 interface NetworkTimelineProps {
   segments: NetworkSegment[];
+  loading?: boolean;
+  actions?: ReactNode;
 }
 
-/// 最小可放大到的视窗：5 分钟（再细就没有能看的区段了）
 const MIN_SPAN_MS = 5 * 60_000;
-/// 滚轮每一格的缩放倍率
-const ZOOM_STEP = 1.4;
+const WHEEL_ZOOM = 1.4;
+const weekdayFormat = new Intl.DateTimeFormat("zh-CN", { weekday: "short" });
+const dateFormat = new Intl.DateTimeFormat("zh-CN", { dateStyle: "full" });
 
-/// 当前视窗。`day` 记住它属于哪一天，换了日期就自动回到整天。
 interface View {
-  day: number;
+  dayStart: number;
   start: number;
   span: number;
 }
 
-/// 时间条样式：未连接为灰色，其余按调色板取色
-function segmentClass(seg: TrackSegment, colors: Map<string, number>): string {
-  const base = "nt-seg";
-  return seg.ssid === null ? `${base} nt-seg--off` : `${base} nt-seg--c${colors.get(seg.ssid) ?? 0}`;
+function clamp(value: number, lo: number, hi: number): number {
+  return Math.min(Math.max(value, lo), hi);
 }
 
-/// 色块样式（累计卡片与时间条同色）
-function swatchClass(ssid: string | null, colors: Map<string, number>): string {
-  return ssid === null
-    ? "nt-swatch nt-swatch--off"
-    : `nt-swatch nt-swatch--c${colors.get(ssid) ?? 0}`;
+function tone(ssid: string | null, colors: Map<string, number>): string {
+  return ssid === null ? "nt-tone--offline" : `nt-tone--${colors.get(ssid) ?? 0}`;
 }
 
-/// 网络使用时间线：一条默认 00:00–24:00 的时间条 + 日期下拉 + 当天累计。
-///
-/// 缩放：滚轮在时间条上滚动，以指针所在的时刻为中心放大 / 缩小（最小 5 分钟，最大整天）。
-/// 平移：放大之后左键拖拽时间条，或拖动下方的滑动条。累计始终按整天算，不受视窗影响。
-/// 纯展示组件，数据由调用方提供（主窗口与独立窗口共用同一份实现）。
-export default function NetworkTimeline({ segments }: NetworkTimelineProps) {
-  /// 相对今天的天数偏移：0 = 今天
+function Duration({ ms }: { ms: number }) {
+  const minutes = Math.floor(ms / 60_000);
+  const hours = Math.floor(minutes / 60);
+  if (ms > 0 && minutes === 0) return <><strong>&lt; 1</strong><span>分</span></>;
+  return (
+    <>
+      {hours > 0 && <><strong>{hours}</strong><span>小时</span></>}
+      <strong>{hours > 0 ? String(minutes % 60).padStart(2, "0") : minutes}</strong><span>分</span>
+    </>
+  );
+}
+
+export default function NetworkTimeline({ segments, loading = false, actions }: NetworkTimelineProps) {
   const [dayOffset, setDayOffset] = useState(0);
   const [view, setView] = useState<View | null>(null);
-  /// 定位「今天」用的当前时刻。跟随数据刷新（或切换日期）一起走动。
+  const [hoverRatio, setHoverRatio] = useState<number | null>(null);
+  const [keyRatio, setKeyRatio] = useState<number | null>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ pointer: number; x: number; start: number; width: number } | null>(null);
+
+  // 进行中的区间随 hook 一起刷新，日期跨过零点时也会重新计算。
   const now = useMemo(() => Date.now(), [segments, dayOffset]);
   const options = useMemo(() => dayOptions(HISTORY_DAYS, now), [now]);
-  const day = options.find((o) => o.offset === dayOffset) ?? options[0];
-  const { from: dayStart, to: dayEnd } = dayWindow(day.dayStart);
-
-  /// 生效的视窗：没缩放过、或换了日期，就先按整天来
-  const active: View =
-    view && view.day === dayOffset ? view : { day: dayOffset, start: dayStart, span: DAY_MS };
-  const { start, span } = active;
+  const { from: dayStart, to: dayEnd } = dayWindow(options[dayOffset].dayStart);
+  const { start, span } = view?.dayStart === dayStart ? view : { start: dayStart, span: DAY_MS };
   const end = start + span;
-  const canPan = span < DAY_MS;
+  const zoomed = span < DAY_MS;
 
-  const trackRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ x: number; start: number; width: number } | null>(null);
-
-  /// 把视窗夹在当天之内：既不越出这一天，也不超过 24 小时
-  const applyView = useCallback(
-    (nextStart: number, nextSpan: number) => {
-      const s = Math.min(Math.max(nextSpan, MIN_SPAN_MS), DAY_MS);
-      const st = Math.min(Math.max(nextStart, dayStart), dayEnd - s);
-      setView({ day: dayOffset, start: st, span: s });
-    },
-    [dayOffset, dayStart, dayEnd],
-  );
-
-  // 滚轮缩放：以指针所在的时刻为锚点，上滚放大、下滚缩小
-  useEffect(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      // 拦掉页面滚动，否则一滚整个窗口跟着动
-      e.preventDefault();
-      const rect = el.getBoundingClientRect();
-      const ratio = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
-      const anchor = start + ratio * span;
-      const target = e.deltaY < 0 ? span / ZOOM_STEP : span * ZOOM_STEP;
-      const next = Math.min(Math.max(target, MIN_SPAN_MS), DAY_MS);
-      applyView(anchor - ratio * next, next);
-    };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, [start, span, applyView]);
-
-  const track = useMemo(() => buildTrack(segments, start, end), [segments, start, end]);
+  const track = useMemo(() => buildTrack(segments, dayStart, dayEnd), [segments, dayStart, dayEnd]);
+  const visibleTrack = track.filter((seg) => seg.end > start && seg.start < end);
+  const latest = visibleTrack[visibleTrack.length - 1];
+  const canInspect = track.length > 0;
   const ticks = useMemo(() => buildTicks(start, end), [start, end]);
-  /// 累计按整天算，缩放 / 平移不影响它
   const sums = useMemo(() => totals(segments, dayStart, dayEnd), [segments, dayStart, dayEnd]);
   const colors = useMemo(() => colorMap(segments), [segments]);
-  const grandTotal = sums.reduce((acc, s) => acc + s.total, 0);
-  /// 今天的窗口只到此刻：还没到的那段时间既不是「已记录」也不是「状态未知」
-  const elapsed = Math.min(now, dayEnd) - dayStart;
-  const unknown = Math.max(elapsed - grandTotal, 0);
-  /// 视窗内「尚未到来」的那一段（只有今天、且视窗越过了此刻时才有）
-  const futureFrom = Math.max(now, start);
-  const futurePct = end > futureFrom ? ((end - futureFrom) / span) * 100 : 0;
-  /// 设置里配置的校园网 SSID，用于在累计里标记出来
+  const connected = sums.reduce((total, s) => total + (s.ssid === null ? 0 : s.total), 0);
+  const recorded = sums.reduce((total, s) => total + s.total, 0);
   const campusSsid = readWifiSsid();
 
-  const rangeLabel = `${formatClock(start)}–${end === dayEnd ? "24:00" : formatClock(end)}`;
+  const position = (ts: number) => ((ts - start) / span) * 100;
+  const clock = (ts: number) => ts === dayEnd ? "24:00" : formatClock(ts);
+  const timeRange = (from: number, to: number) => `${clock(from)} – ${clock(to)}`;
+  const nowPosition = dayOffset === 0 ? clamp(position(now), 0, 100) : 100;
+  const inspectRatio = hoverRatio ?? keyRatio;
+  const cursorTime = Math.min(end - 1, start + span * (inspectRatio ?? 0));
+  const inspected = inspectRatio === null
+    ? latest
+    : visibleTrack.find((seg) => seg.start <= cursorTime && cursorTime < seg.end);
+  const isFuture = (inspectRatio === null ? start : cursorTime) >= now;
+  const inspectedLabel = inspected ? inspected.ssid ?? "未连接" : isFuture ? "尚未到达" : "未记录";
+  const inspectedRange = inspected
+    ? timeRange(inspected.start, inspected.end)
+    : inspectRatio === null ? timeRange(start, end) : clock(cursorTime);
+  const inspectedDuration = inspected ? formatSpan(inspected.end - inspected.start) : null;
 
-  /// 左键拖拽平移：往右拖＝回到更早的时间
-  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if (!canPan || e.button !== 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    dragRef.current = { x: e.clientX, start, width: rect.width };
-    e.currentTarget.setPointerCapture(e.pointerId);
+  const applyView = useCallback((nextStart: number, nextSpan: number) => {
+    const bounded = clamp(nextSpan, MIN_SPAN_MS, DAY_MS);
+    setView(bounded === DAY_MS ? null : {
+      dayStart,
+      start: clamp(nextStart, dayStart, dayEnd - bounded),
+      span: bounded,
+    });
+  }, [dayStart, dayEnd]);
+
+  const zoom = useCallback((factor: number, ratio: number) => {
+    const nextSpan = clamp(span * factor, MIN_SPAN_MS, DAY_MS);
+    if (nextSpan !== span) applyView(start + (span - nextSpan) * ratio, nextSpan);
+  }, [start, span, applyView]);
+
+  // 原生监听器需要 passive:false，滚轮缩放时不带动窗口滚动。
+  useEffect(() => {
+    const plot = plotRef.current;
+    if (!plot || loading) return;
+    function onWheel(event: WheelEvent) {
+      if (!event.deltaY || !plot) return;
+      const rect = plot.getBoundingClientRect();
+      const ratio = clamp((event.clientX - rect.left) / rect.width, 0, 1);
+      const factor = event.deltaY < 0 ? 1 / WHEEL_ZOOM : WHEEL_ZOOM;
+      if (clamp(span * factor, MIN_SPAN_MS, DAY_MS) === span) return;
+      event.preventDefault();
+      zoom(factor, ratio);
+    }
+    plot.addEventListener("wheel", onWheel, { passive: false });
+    return () => plot.removeEventListener("wheel", onWheel);
+  }, [loading, span, zoom]);
+
+  function selectDay(offset: number) {
+    if (offset === dayOffset) return;
+    setDayOffset(offset);
+    setView(null);
+    setHoverRatio(null);
+    setKeyRatio(null);
   }
 
-  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (loading || !event.isPrimary || event.button !== 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    setHoverRatio(clamp((event.clientX - rect.left) / rect.width, 0, 1));
+    if (!zoomed) return;
+    dragRef.current = { pointer: event.pointerId, x: event.clientX, start, width: rect.width };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (loading || !event.isPrimary) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    setHoverRatio(clamp((event.clientX - rect.left) / rect.width, 0, 1));
     const drag = dragRef.current;
-    if (!drag) return;
-    applyView(drag.start - ((e.clientX - drag.x) / drag.width) * span, span);
+    if (drag?.pointer === event.pointerId) {
+      applyView(drag.start - ((event.clientX - drag.x) / drag.width) * span, span);
+    }
   }
 
-  function onPointerEnd(e: React.PointerEvent<HTMLDivElement>) {
-    if (!dragRef.current) return;
-    dragRef.current = null;
-    e.currentTarget.releasePointerCapture(e.pointerId);
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const steps: Record<string, number> = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 };
+    const step = steps[event.key];
+    if (!step && event.key !== "Home" && event.key !== "End") return;
+    event.preventDefault();
+    setHoverRatio(null);
+    const current = keyRatio ?? (latest ? (Math.max(latest.start, start) + Math.min(latest.end, end) - 2 * start) / (2 * span) : 0);
+    setKeyRatio(event.key === "Home" ? 0 : event.key === "End" ? 1 : clamp(current + step / 96, 0, 1));
   }
+
+  const viewLabel = zoomed ? timeRange(start, end) : "全天";
+  const cursorAnchor = latest ? (Math.max(latest.start, start) + Math.min(latest.end, end)) / 2 : start + span / 2;
+  const showNow = dayOffset === 0 && now >= start && now <= end;
 
   return (
-    <div className="nt-root">
+    <div className="nt-root" aria-busy={loading}>
       <div className="nt-toolbar">
-        <label className="nt-range">
-          <span className="nt-range__label">日期</span>
-          <select
-            className="nt-range__select"
-            value={dayOffset}
-            onChange={(e) => setDayOffset(Number(e.target.value))}
-          >
-            {options.map((o) => (
-              <option key={o.offset} value={o.offset}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="nt-toolbar__span" title="当前显示的时间段" data-selectable>
-          {rangeLabel}
-        </span>
-        <span className="nt-toolbar__meta" data-selectable>
-          已记录 {formatSpan(grandTotal)} · 状态未知 {unknown > 0 ? formatSpan(unknown) : "无"}
-        </span>
-      </div>
-
-      <div
-        ref={trackRef}
-        className={`nt-track${canPan ? " nt-track--pannable" : ""}`}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerEnd}
-        onPointerCancel={onPointerEnd}
-      >
-        <div className="nt-grid" aria-hidden>
-          {ticks
-            .filter((t) => t.left > 0 && t.left < 100)
-            .map((t) => (
-              <span
-                key={t.ts}
-                className={t.major ? "nt-grid__major" : undefined}
-                style={{ left: `${t.left}%` }}
-              />
-            ))}
-        </div>
-        {futurePct > 0 && (
-          <span
-            className="nt-future"
-            style={{ left: `${100 - futurePct}%`, width: `${futurePct}%` }}
-            title="尚未到来的时段"
-          />
-        )}
-        {track.map((seg, i) => (
-          <span
-            key={`${seg.start}-${i}`}
-            className={segmentClass(seg, colors)}
-            style={{ left: `${seg.left}%`, width: `calc(${seg.width}% - 1px)` }}
-            title={segmentTitle(seg)}
-          />
-        ))}
-        {track.length === 0 && <span className="nt-track__empty">这个时段没有记录</span>}
-      </div>
-
-      <div className="nt-ticks" aria-hidden>
-        {ticks
-          .filter((t) => t.major)
-          .map((t) => (
-            <span
-              key={t.ts}
-              style={{
-                left: `${t.left}%`,
-                // 两端的标签贴边对齐，免得「00:00」「24:00」被裁掉一半
-                transform: t.left <= 0 ? "none" : t.left >= 100 ? "translateX(-100%)" : undefined,
-              }}
-            >
-              {t.label}
-            </span>
-          ))}
-      </div>
-
-      <div className="nt-pan">
-        {canPan && (
-          <input
-            type="range"
-            className="nt-pan__slider"
-            aria-label="时间线位置"
-            min={0}
-            max={DAY_MS - span}
-            step={1000}
-            value={start - dayStart}
-            onChange={(e) => applyView(dayStart + Number(e.target.value), span)}
-          />
-        )}
-      </div>
-
-      <section className="nt-totals">
-        <h3 className="nt-totals__title">{day.label}累计</h3>
-        <div className="nt-totals__grid">
-          {sums.map((s) => {
-            const pct = grandTotal ? Math.round((s.total / grandTotal) * 100) : 0;
+        <div className="nt-dates" role="group" aria-label="选择日期">
+          {options.map((day) => {
+            const date = new Date(day.dayStart);
+            const label = day.offset < 2 ? day.label : weekdayFormat.format(date);
+            const month = date.getMonth() + 1;
+            const dayOfMonth = String(date.getDate()).padStart(2, "0");
+            const isoDate = `${date.getFullYear()}-${String(month).padStart(2, "0")}-${dayOfMonth}`;
             return (
-              <article className="nt-card" key={s.ssid ?? "__offline"}>
-                <header className="nt-card__head">
-                  <span className={swatchClass(s.ssid, colors)} />
-                  <span className="nt-card__name" title={s.ssid ?? "未连接"} data-selectable>
-                    {s.ssid ?? "未连接"}
-                  </span>
-                  {s.ssid !== null && s.ssid === campusSsid && (
-                    <span className="nt-card__tag">校园网</span>
-                  )}
-                </header>
-                <div className="nt-card__time" data-selectable>
-                  {formatSpan(s.total)}
-                </div>
-                <div className="nt-card__meta" data-selectable>
-                  占比 {pct}%
-                </div>
-                <div className="nt-card__bar">
-                  <span
-                    className={swatchClass(s.ssid, colors)}
-                    style={{ width: `${Math.max(pct, 2)}%` }}
-                  />
-                </div>
-              </article>
+              <button
+                type="button"
+                key={day.offset}
+                className="nt-date"
+                aria-pressed={day.offset === dayOffset}
+                aria-label={`${label}，${dateFormat.format(date)}`}
+                onClick={() => selectDay(day.offset)}
+              >
+                <span>{label}</span>
+                <time dateTime={isoDate}>{month}/{dayOfMonth}</time>
+              </button>
             );
           })}
         </div>
+        {actions}
+      </div>
+
+      <section className="nt-panel" aria-label="连接时间线">
+        <header className="nt-panel__head">
+          <div className="nt-metric">
+            <h2>Wi-Fi 连接时长</h2>
+            <div className="nt-metric__value" data-selectable>
+              {recorded > 0 ? <Duration ms={connected} /> : <strong aria-label="暂无统计">—</strong>}
+            </div>
+          </div>
+          <div className="nt-viewport" role="group" aria-label="时间线缩放">
+            <span className="nt-viewport__range">{viewLabel}</span>
+            <button type="button" className="nt-icon-btn" title="缩小" aria-label="缩小" disabled={!zoomed} onClick={() => zoom(2, 0.5)}>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8h8" /></svg>
+            </button>
+            <button type="button" className="nt-icon-btn" title="放大" aria-label="放大" disabled={loading || span <= MIN_SPAN_MS} onClick={() => zoom(0.5, zoomed ? 0.5 : position(cursorAnchor) / 100)}>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 8h8M8 4v8" /></svg>
+            </button>
+            <button type="button" className="nt-icon-btn" title="恢复全天" aria-label="恢复全天" disabled={!zoomed} onClick={() => setView(null)}>
+              <IconRefresh size={14} />
+            </button>
+          </div>
+        </header>
+
+        <div className="nt-chart">
+          <div
+            className={`nt-plot${zoomed ? " nt-plot--pannable" : ""}`}
+            ref={plotRef}
+            role={canInspect ? "slider" : undefined}
+            tabIndex={canInspect ? 0 : undefined}
+            aria-label={canInspect ? "查看连接时段" : undefined}
+            aria-valuemin={canInspect ? 0 : undefined}
+            aria-valuemax={canInspect ? 100 : undefined}
+            aria-valuenow={canInspect ? Math.round((inspectRatio ?? position(cursorAnchor) / 100) * 100) : undefined}
+            aria-valuetext={canInspect ? [inspectedLabel, inspectedRange, inspectedDuration].filter(Boolean).join("，") : undefined}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerLeave={() => setHoverRatio(null)}
+            onLostPointerCapture={() => { dragRef.current = null; }}
+            onPointerCancel={() => setHoverRatio(null)}
+            onKeyDown={onKeyDown}
+            onBlur={() => setKeyRatio(null)}
+          >
+            <div className="nt-plot__layers" aria-hidden="true">
+              {nowPosition < 100 && <span className="nt-future" style={{ left: `${nowPosition}%` }} />}
+              {ticks.map((tick) => (
+                <span key={tick.ts} className={`nt-grid${tick.major ? " nt-grid--major" : ""}`} style={{ left: `${tick.left}%` }} />
+              ))}
+              <div className="nt-baseline" style={{ width: `${nowPosition}%` }} />
+              {visibleTrack.map((seg) => {
+                const left = position(Math.max(start, seg.start));
+                const right = position(Math.min(end, seg.end));
+                return (
+                  <span
+                    key={seg.start}
+                    className={`nt-band ${tone(seg.ssid, colors)}${inspectRatio !== null && inspected === seg ? " nt-band--active" : ""}`}
+                    style={{ left: `${left}%`, width: `${right - left}%` }}
+                  />
+                );
+              })}
+              {showNow && (
+                <>
+                  <span className="nt-now" style={{ left: `${nowPosition}%` }} />
+                  <span className="nt-now__label" style={{ left: `clamp(18px, ${nowPosition}%, calc(100% - 18px))` }}>现在</span>
+                </>
+              )}
+              {inspectRatio !== null && canInspect && <span className="nt-crosshair" style={{ left: `${inspectRatio * 100}%` }} />}
+            </div>
+            {!canInspect && <p className="nt-empty" role="status">{loading ? "正在读取…" : "当天暂无记录"}</p>}
+          </div>
+          <div className="nt-axis" aria-hidden="true">
+            {ticks.filter((tick) => tick.major).map((tick) => (
+              <span
+                key={tick.ts}
+                className={tick.left < 3 ? "nt-axis__start" : tick.left > 97 ? "nt-axis__end" : undefined}
+                style={{ left: `${tick.left}%` }}
+              >
+                {tick.label}
+              </span>
+            ))}
+          </div>
+          {zoomed && (
+            <input
+              className="nt-pan"
+              type="range"
+              aria-label="平移时间线"
+              aria-valuetext={viewLabel}
+              min={0}
+              max={DAY_MS - span}
+              step="any"
+              value={start - dayStart}
+              onChange={(event) => applyView(dayStart + Number(event.target.value), span)}
+            />
+          )}
+        </div>
+
+        {canInspect && (
+          <div className="nt-inspect">
+            <span className="nt-inspect__label">{inspectRatio !== null ? "所选时段" : latest ? "最近记录" : "当前视窗"}</span>
+            <div className="nt-network">
+              {inspected && <span className={`nt-swatch ${tone(inspected.ssid, colors)}`} aria-hidden="true" />}
+              <span className="nt-network__name" data-selectable title={inspectedLabel}>{inspectedLabel}</span>
+            </div>
+            <span className="nt-inspect__time" data-selectable>{inspectedRange}</span>
+            <span className="nt-inspect__duration" data-selectable>{inspectedDuration}</span>
+          </div>
+        )}
       </section>
+
+      {sums.length > 0 && (
+        <section className="nt-breakdown" aria-labelledby="nt-breakdown-title">
+          <h2 id="nt-breakdown-title">按网络统计</h2>
+          <table className="nt-summary">
+            <thead><tr><th scope="col">网络</th><th scope="col">记录占比</th><th scope="col">时长</th></tr></thead>
+            <tbody>
+              {sums.map((item) => {
+                const name = item.ssid ?? "未连接";
+                const color = tone(item.ssid, colors);
+                const fraction = item.total / recorded;
+                const percent = fraction < 0.01 ? "<1%" : `${Math.round(fraction * 100)}%`;
+                return (
+                  <tr key={item.ssid === null ? "offline" : `wifi:${item.ssid}`}>
+                    <th scope="row">
+                      <div className="nt-network">
+                        <span className={`nt-swatch ${color}`} aria-hidden="true" />
+                        <span className="nt-network__name" data-selectable title={name}>{name}</span>
+                        {item.ssid !== null && item.ssid === campusSsid && <span className="nt-campus">校园网</span>}
+                      </div>
+                    </th>
+                    <td>
+                      <div className="nt-share">
+                        <span className="nt-share__track" aria-hidden="true"><span className={color} style={{ width: `${fraction * 100}%` }} /></span>
+                        <span>{percent}</span>
+                      </div>
+                    </td>
+                    <td className="nt-summary__duration" data-selectable>{formatSpan(item.total)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </section>
+      )}
     </div>
   );
 }
