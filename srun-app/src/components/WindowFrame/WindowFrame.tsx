@@ -6,22 +6,19 @@ import "./WindowFrame.css";
 
 interface WindowFrameProps {
   title: string;
+  className?: string;
   subtitle?: string;
-  actions?: ReactNode;
   children: ReactNode;
 }
 
-export default function WindowFrame({ title, subtitle, actions, children }: WindowFrameProps) {
+export default function WindowFrame({ title, subtitle, className, children }: WindowFrameProps) {
   const { toasts, dismissToast } = useWindowChrome();
 
   return (
-    <div className="wf-root">
+    <div className={className ? `wf-root ${className}` : "wf-root"}>
       <TitleBar title={title} subtitle={subtitle} />
 
-      <main className="wf-body">
-        {actions && <div className="wf-actions">{actions}</div>}
-        {children}
-      </main>
+      <main className="wf-body">{children}</main>
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
     </div>
