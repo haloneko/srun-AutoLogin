@@ -4,7 +4,7 @@ import "./index.css";
 export const meta: ThemePluginMeta = {
   id: "stars",
   label: "星空",
-  desc: "",
+  desc: "深蓝夜空，星光微闪",
   colorScheme: "dark",
 };
 

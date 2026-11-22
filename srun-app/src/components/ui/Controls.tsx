@@ -72,7 +72,7 @@ export function OptionGroup({ name, value, options, columns = 3, onChange }: Opt
       {options.map((o) => (
         <label
           key={o.value}
-          className={`option${value === o.value ? " option--on" : ""}${
+          className={`control-surface option${value === o.value ? " option--on" : ""}${
             o.disabled ? " option--locked" : ""
           }`}
         >

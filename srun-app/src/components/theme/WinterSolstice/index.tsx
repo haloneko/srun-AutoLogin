@@ -6,7 +6,7 @@ import "./index.css";
 export const meta: ThemePluginMeta = {
   id: "solstice",
   label: "冬至",
-  desc: "雪花飘飘",
+  desc: "冰蓝雪景，细雪飘落",
   colorScheme: "dark",
   unlock: {
     when: (values) => (values["login.solstice"] ?? 0) >= 1,

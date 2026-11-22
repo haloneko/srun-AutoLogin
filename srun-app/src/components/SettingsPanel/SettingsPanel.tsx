@@ -234,7 +234,7 @@ function SettingTextField({
   return (
     <Field label={field.label} hint={field.hint} inline>
       <input
-        className="settings-input"
+        className="control-surface settings-input"
         type={field.secret ? (showPwd ? "text" : "password") : "text"}
         value={value}
         onChange={(e) => onChange(field.key, e.target.value)}
@@ -246,7 +246,7 @@ function SettingTextField({
       {field.secret && (
         <button
           type="button"
-          className="settings-input__btn"
+          className="control-surface settings-input__btn"
           onClick={onTogglePwd}
           aria-label={showPwd ? "隐藏密码" : "显示密码"}
         >
@@ -257,7 +257,7 @@ function SettingTextField({
         <span className="settings-input__actions">
           <button
             type="button"
-            className="settings-input__btn settings-input__btn--ok"
+            className="control-surface settings-input__btn"
             onClick={onConfirm}
             aria-label={`确认保存${field.label}`}
           >
@@ -265,7 +265,7 @@ function SettingTextField({
           </button>
           <button
             type="button"
-            className="settings-input__btn"
+            className="control-surface settings-input__btn"
             onClick={onCancel}
             aria-label={`撤销${field.label}修改`}
           >

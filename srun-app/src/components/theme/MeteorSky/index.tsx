@@ -6,7 +6,7 @@ import "./index.css";
 export const meta: ThemePluginMeta = {
   id: "meteor",
   label: "流星夜空",
-  desc: "流星划过夜空",
+  desc: "流星掠过深蓝夜空",
   colorScheme: "dark",
   unlock: {
     when: (values) => (values["konami.entered"] ?? 0) >= 1,
