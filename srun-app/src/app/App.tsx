@@ -15,6 +15,7 @@ import {
   writeAutostartVersion,
 } from "@/domain/settings";
 import { formatBytes, formatDuration } from "@/common/utils";
+import { resetWindowHover } from "@/common/windowHover";
 
 export default function App() {
   const { toasts, showToast, dismissToast } = useWindowChrome();
@@ -75,6 +76,7 @@ export default function App() {
 
   /// 打开独立的「网络使用历史」窗口（已打开则唤起并聚焦）
   async function openHistory() {
+    resetWindowHover();
     try {
       await invoke("open_history_window");
     } catch (err) {
@@ -84,6 +86,7 @@ export default function App() {
 
   /// 打开独立的「设置」窗口（已打开则唤起并聚焦）
   async function openSettings() {
+    resetWindowHover();
     try {
       await invoke("open_settings_window");
     } catch (err) {

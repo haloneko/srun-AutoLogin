@@ -268,11 +268,11 @@
 }
 
 /* 已连接 ⇄ 退出登录：悬浮切换 */
-.hero--success:hover .hero-label__text {
+:where(:root[data-window-hover]) .hero--success:hover .hero-label__text {
   opacity: 0;
 }
 
-.hero--success:hover .hero-label__alt {
+:where(:root[data-window-hover]) .hero--success:hover .hero-label__alt {
   opacity: 1;
 }
 

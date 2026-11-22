@@ -6,6 +6,7 @@ import {
   subscribeContextMenu,
 } from "@/app/contextMenu";
 import type { ContextMenuState, MenuEntry, MenuItem } from "@/app/contextMenu";
+import { subscribeWindowHoverReset } from "@/common/windowHover";
 import "./ContextMenu.css";
 
 const EDGE = 8;
@@ -89,11 +90,11 @@ export default function ContextMenuHost() {
       closeContextMenu();
     };
     window.addEventListener("resize", close);
-    window.addEventListener("blur", close);
+    const unsubscribeHoverReset = subscribeWindowHoverReset(close);
     document.addEventListener("scroll", onScroll, true);
     return () => {
       window.removeEventListener("resize", close);
-      window.removeEventListener("blur", close);
+      unsubscribeHoverReset();
       document.removeEventListener("scroll", onScroll, true);
     };
   }, [state]);

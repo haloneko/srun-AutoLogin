@@ -19,7 +19,7 @@
     background 0.12s;
 }
 
-.wc__btn:hover {
+:where(:root[data-window-hover]) .wc__btn:hover {
   color: var(--text);
   background: color-mix(in srgb, var(--text) 10%, transparent);
 }
@@ -34,17 +34,21 @@
   outline-offset: -3px;
 }
 
-.wc__btn--close:hover {
+.wc__btn--close {
+  transition: none;
+}
+
+:where(:root[data-window-hover]) .wc__btn--close:hover {
   color: #fff;
   background: #c42b1c;
 }
 
-.wc__btn--close:active {
+:where(:root[data-window-hover]) .wc__btn--close:active {
   color: #fff;
   background: #b02a1f;
 }
 
-.wc__btn--close:focus-visible {
+:where(:root[data-window-hover]) .wc__btn--close:hover:focus-visible {
   outline-color: #fff;
 }
 

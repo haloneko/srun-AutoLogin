@@ -162,7 +162,7 @@ textarea,
     background 0.15s;
 }
 
-.icon-btn:hover:not(:disabled) {
+:where(:root[data-window-hover]) .icon-btn:hover:not(:disabled) {
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
@@ -240,7 +240,7 @@ textarea,
     color 0.15s;
 }
 
-.toast__close:hover {
+:where(:root[data-window-hover]) .toast__close:hover {
   color: var(--text-1);
   background: var(--line);
 }
@@ -448,7 +448,7 @@ textarea,
   transition: background 0.15s;
 }
 
-.wifi-hint__btn:hover {
+:where(:root[data-window-hover]) .wifi-hint__btn:hover {
   background: var(--accent-dark);
 }
 
@@ -500,7 +500,7 @@ textarea,
   transition: background 0.15s;
 }
 
-::-webkit-scrollbar-thumb:hover {
+:where(:root[data-window-hover], :root[data-window-hover] *)::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--accent) 55%, transparent);
   background-clip: padding-box;
 }

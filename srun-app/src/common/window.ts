@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
+import { resetWindowHover } from "./windowHover";
 
 export async function closeCurrentWindow(onError?: (msg: string) => void) {
+  resetWindowHover();
   try {
     await invoke("close_current_window");
   } catch (err) {

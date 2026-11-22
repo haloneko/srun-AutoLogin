@@ -31,7 +31,7 @@
     background 0.15s;
 }
 
-.settings-nav__item:hover {
+:where(:root[data-window-hover]) .settings-nav__item:hover {
   color: var(--text-1);
   background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
@@ -273,7 +273,7 @@
   cursor: pointer;
 }
 
-.about-categories button:hover {
+:where(:root[data-window-hover]) .about-categories button:hover {
   background-color: color-mix(in srgb, var(--text-2) 9%, transparent);
 }
 
@@ -350,7 +350,7 @@
   cursor: pointer;
 }
 
-.settings-input__btn:hover,
+:where(:root[data-window-hover]) .settings-input__btn:hover,
 .settings-input__btn:focus-visible {
   color: var(--accent);
 }
@@ -380,7 +380,7 @@
     background 0.15s;
 }
 
-.settings-btn:hover:not(:disabled) {
+:where(:root[data-window-hover]) .settings-btn:hover:not(:disabled) {
   color: var(--accent);
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 7%, transparent);

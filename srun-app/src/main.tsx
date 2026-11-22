@@ -9,10 +9,12 @@ import ContextMenuHost from "@/components/ContextMenu/ContextMenuHost";
 import WindowShell from "@/components/WindowShell/WindowShell";
 import { installContextMenu } from "@/app/contextMenu";
 import { installSelectionReset } from "@/app/selection";
+import { installWindowHover } from "@/common/windowHover";
 import "@/app/styles.css";
 
 installSelectionReset();
 installContextMenu();
+installWindowHover();
 
 /// 当前窗口 label：主窗口、历史窗口、设置窗口共用同一份前端产物，按此分流渲染。
 /// 纯浏览器打开（脱离 Tauri）时按主窗口处理，方便调试。

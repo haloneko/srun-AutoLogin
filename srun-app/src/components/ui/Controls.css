@@ -60,7 +60,7 @@
     background-color 0.15s ease;
 }
 
-.control-surface:not(.option--on, .option--locked, :disabled, :focus-visible):hover {
+:where(:root[data-window-hover]) .control-surface:not(.option--on, .option--locked, :disabled, :focus-visible):hover {
   border-color: color-mix(in srgb, var(--accent) 50%, var(--surface-edge));
   background-color: color-mix(in srgb, var(--card) 63%, transparent);
 }
