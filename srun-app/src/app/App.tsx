@@ -8,6 +8,7 @@ import TitleBar from "@/components/TitleBar/TitleBar";
 import { IconGear, IconRefresh, IconTimeline } from "@/components/icons/Icons";
 import { useWindowChrome } from "@/components/WindowShell/WindowShell";
 import { useNetwork } from "@/hooks/useNetwork";
+import { usePageVisible } from "@/hooks/usePageVisible";
 import {
   readAutostartVersion,
   readSilentStart,
@@ -17,6 +18,7 @@ import { formatBytes, formatDuration } from "@/common/utils";
 
 export default function App() {
   const { toasts, showToast, dismissToast } = useWindowChrome();
+  const visible = usePageVisible();
   const {
     status,
     info,
@@ -62,6 +64,14 @@ export default function App() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    const id = window.requestIdleCallback(() => {
+      void invoke<void>("preload_child_windows").catch(() => {});
+    }, { timeout: 500 });
+    return () => window.cancelIdleCallback(id);
+  }, [visible]);
 
   /// 打开独立的「网络使用历史」窗口（已打开则唤起并聚焦）
   async function openHistory() {

@@ -2,7 +2,9 @@
 //!
 //! 复用 `srun-core` 完成登录流程，通过 Tauri command 暴露给 React 前端。
 
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::Deserialize;
@@ -88,6 +90,13 @@ fn schedule_idle_unload(app: &AppHandle) {
             );
             if let Err(e) = win.destroy() {
                 log::warn!("卸载主窗口失败: {e}");
+            }
+            for (label, _) in CHILD_WINDOWS {
+                if let Some(child) = handle.get_webview_window(label) {
+                    if !child.is_visible().unwrap_or(true) && !child.is_minimized().unwrap_or(true) {
+                        let _ = child.destroy();
+                    }
+                }
             }
         }) {
             log::warn!("调度主窗口卸载失败: {e}");
@@ -310,6 +319,19 @@ fn network_history_clear() -> Result<(), String> {
 
 /// 「网络使用历史」独立窗口的 label（前端据此决定渲染哪个界面）
 const HISTORY_WINDOW_LABEL: &str = "history";
+const SETTINGS_WINDOW_LABEL: &str = "settings";
+const CHILD_WINDOWS: [(&str, &str); 2] = [
+    (SETTINGS_WINDOW_LABEL, "设置"),
+    (HISTORY_WINDOW_LABEL, "网络使用历史"),
+];
+
+enum ChildWindowStatus {
+    Loading { show_when_ready: bool },
+    Ready,
+}
+
+#[derive(Default)]
+struct ChildWindows(Mutex<HashMap<&'static str, ChildWindowStatus>>);
 
 /// 两个子窗口（历史 / 设置）共用的尺寸与最小尺寸。
 ///
@@ -319,19 +341,49 @@ const CHILD_WINDOW_HEIGHT: f64 = 640.0;
 const CHILD_WINDOW_MIN_WIDTH: f64 = 720.0;
 const CHILD_WINDOW_MIN_HEIGHT: f64 = 480.0;
 
-fn open_child_window(app: &AppHandle, label: &str, title: &str) -> Result<(), String> {
-    if let Some(win) = app.get_webview_window(label) {
-        let _ = win.unminimize();
-        let _ = win.show();
-        let _ = win.set_focus();
-        return Ok(());
+fn open_child_window(
+    app: &AppHandle,
+    label: &'static str,
+    title: &str,
+    show: bool,
+) -> Result<(), String> {
+    let windows = app.state::<ChildWindows>();
+    {
+        let mut statuses = windows.0.lock().unwrap();
+        match statuses.get_mut(label) {
+            Some(ChildWindowStatus::Loading { show_when_ready }) => {
+                *show_when_ready |= show;
+                return Ok(());
+            }
+            Some(ChildWindowStatus::Ready) => {
+                drop(statuses);
+                if show {
+                    if let Some(win) = app.get_webview_window(label) {
+                        focus_window(&win);
+                    }
+                }
+                return Ok(());
+            }
+            None => {
+                statuses.insert(label, ChildWindowStatus::Loading { show_when_ready: show });
+            }
+        }
     }
 
+    let result = build_child_window(app, label, title);
+    if result.is_err() {
+        windows.0.lock().unwrap().remove(label);
+    }
+    result
+}
+
+fn build_child_window(app: &AppHandle, label: &str, title: &str) -> Result<(), String> {
     let mut builder =
         tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::App("index.html".into()))
             .title(title)
             // 与主窗口一致：去掉系统标题栏，窗口按钮由前端 TitleBar 提供
             .decorations(false)
+            .visible(false)
             .inner_size(CHILD_WINDOW_WIDTH, CHILD_WINDOW_HEIGHT)
             .min_inner_size(CHILD_WINDOW_MIN_WIDTH, CHILD_WINDOW_MIN_HEIGHT)
             .center();
@@ -341,31 +393,73 @@ fn open_child_window(app: &AppHandle, label: &str, title: &str) -> Result<(), St
         builder = builder.icon(icon.clone()).map_err(|e| e.to_string())?;
     }
 
-    match builder.build() {
-        Ok(_) => {
-            log::info!("已打开{title}窗口");
-            Ok(())
+    builder
+        .build()
+        .map_err(|e| format!("打开{title}窗口失败: {e}"))?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn preload_child_windows(window: tauri::WebviewWindow) {
+    if window.label() != MAIN_WINDOW_LABEL {
+        return;
+    }
+    for (label, title) in CHILD_WINDOWS {
+        if !window.is_visible().unwrap_or(false) || window.is_minimized().unwrap_or(true) {
+            break;
         }
-        // 连点两次时可能已被另一次调用创建：按「已打开」处理，不当成失败
-        Err(e) => {
-            if app.get_webview_window(label).is_some() {
-                Ok(())
-            } else {
-                Err(format!("打开{title}窗口失败: {e}"))
-            }
+        if let Err(e) = open_child_window(window.app_handle(), label, title, false) {
+            log::warn!("预加载{title}窗口失败: {e}");
         }
     }
 }
 
 #[tauri::command]
 async fn open_history_window(app: AppHandle) -> Result<(), String> {
-    open_child_window(&app, HISTORY_WINDOW_LABEL, "网络使用历史")
+    open_child_window(&app, HISTORY_WINDOW_LABEL, "网络使用历史", true)
 }
 
-const SETTINGS_WINDOW_LABEL: &str = "settings";
 #[tauri::command]
 async fn open_settings_window(app: AppHandle) -> Result<(), String> {
-    open_child_window(&app, SETTINGS_WINDOW_LABEL, "设置")
+    open_child_window(&app, SETTINGS_WINDOW_LABEL, "设置", true)
+}
+
+#[tauri::command]
+async fn child_window_ready(
+    window: tauri::WebviewWindow,
+    background_color: String,
+) -> Result<(), String> {
+    if !matches!(window.label(), HISTORY_WINDOW_LABEL | SETTINGS_WINDOW_LABEL) {
+        return Err("此命令仅适用于设置和网络使用历史窗口".to_string());
+    }
+    // 首帧绘制前，原生窗口和 WebView 的底色也使用当前主题的配色。
+    let color = background_color
+        .strip_prefix('#')
+        .filter(|hex| hex.len() == 6)
+        .and_then(|hex| u32::from_str_radix(hex, 16).ok());
+    if let Some(rgb) = color {
+        let [_, red, green, blue] = rgb.to_be_bytes();
+        let color = tauri::window::Color(red, green, blue, 255);
+        if let Err(e) = window.set_background_color(Some(color)) {
+            log::warn!("设置窗口底色失败: {e}");
+        }
+    }
+
+    let windows = window.state::<ChildWindows>();
+    let show = {
+        let mut statuses = windows.0.lock().unwrap();
+        let Some(status) = statuses.get_mut(window.label()) else {
+            return Ok(());
+        };
+        matches!(
+            std::mem::replace(status, ChildWindowStatus::Ready),
+            ChildWindowStatus::Loading { show_when_ready: true }
+        )
+    };
+    if show {
+        focus_window(&window);
+    }
+    Ok(())
 }
 
 /// 关闭调用本命令的窗口：前端 `invoke("close_current_window")` 调用。
@@ -487,6 +581,7 @@ fn is_autostart_launch() -> bool {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(ChildWindows::default())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
             // 自启动时附加 --silent：应用据此隐藏主窗口，仅驻留托盘
@@ -535,15 +630,24 @@ pub fn run() {
             }
             Ok(())
         })
-        .on_window_event(|window, event| {
-            // 仅主窗口点 × 时隐藏到托盘后台运行；历史窗口等辅助窗口允许真正关闭
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
                 if window.label() == MAIN_WINDOW_LABEL {
                     let _ = window.hide();
                     api.prevent_close();
                     schedule_idle_unload(window.app_handle());
+                } else if matches!(window.label(), HISTORY_WINDOW_LABEL | SETTINGS_WINDOW_LABEL)
+                    && window.app_handle().get_webview_window(MAIN_WINDOW_LABEL).is_some()
+                    && window.hide().is_ok()
+                {
+                    api.prevent_close();
                 }
             }
+            tauri::WindowEvent::Destroyed => {
+                let windows = window.state::<ChildWindows>();
+                windows.0.lock().unwrap().remove(window.label());
+            }
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             srun_login,
@@ -559,6 +663,8 @@ pub fn run() {
             open_log_dir,
             open_history_window,
             open_settings_window,
+            preload_child_windows,
+            child_window_ready,
             close_current_window,
             minimize_current_window,
             toggle_maximize_window,

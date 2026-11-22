@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import TitleBar from "@/components/TitleBar/TitleBar";
 import ToastStack from "@/components/Toast/ToastStack";
 import { useWindowChrome } from "@/components/WindowShell/WindowShell";
@@ -12,7 +13,16 @@ interface WindowFrameProps {
 }
 
 export default function WindowFrame({ title, subtitle, className, children }: WindowFrameProps) {
-  const { toasts, dismissToast } = useWindowChrome();
+  const { theme, toasts, showToast, dismissToast } = useWindowChrome();
+
+  useEffect(() => {
+    const backgroundColor = getComputedStyle(document.documentElement)
+      .getPropertyValue("--bg")
+      .trim();
+    void invoke<void>("child_window_ready", { backgroundColor }).catch((error) => {
+      showToast(`初始化窗口失败：${String(error)}`);
+    });
+  }, [theme, showToast]);
 
   return (
     <div className={className ? `wf-root ${className}` : "wf-root"}>

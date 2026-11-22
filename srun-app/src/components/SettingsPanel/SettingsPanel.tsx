@@ -41,6 +41,7 @@ import DebugPanel from "./DebugPanel";
 import { changeTheme } from "@/hooks/useThemeSync";
 import { useWindowTheme, useWindowToast } from "@/components/WindowShell/WindowShell";
 import { useDebugMode } from "@/hooks/useDebugMode";
+import { usePageVisible } from "@/hooks/usePageVisible";
 import { useTriggers } from "@/hooks/useTriggers";
 import { isThemeUnlocked, THEMES } from "@/domain/theme";
 import type { ThemeId } from "@/domain/theme";
@@ -279,6 +280,7 @@ function SettingTextField({
 export default function SettingsPanel() {
   const onToast = useWindowToast();
   const theme = useWindowTheme();
+  const visible = usePageVisible();
   const [values, setValues] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, string>>({});
   const [startupMode, setStartupMode] = useState<StartupMode>("manual");
@@ -295,6 +297,10 @@ export default function SettingsPanel() {
   const pendingScroll = useRef<string | null>(null);
   /// 调试模式开着才在导航里露出「调试」入口
   const debug = useDebugMode();
+
+  useEffect(() => {
+    if (!visible) setShowPwd(false);
+  }, [visible]);
 
   useEffect(() => {
     const id = pendingScroll.current;
