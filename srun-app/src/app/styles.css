@@ -473,8 +473,6 @@ textarea,
 
 /* 尊重系统的「减少动效」设置：只留静态状态 */
 @media (prefers-reduced-motion: reduce) {
-  .hero,
-  .hero *,
   .panel,
   .toast {
     animation: none !important;

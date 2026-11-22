@@ -71,6 +71,38 @@ export function IconCheck(props: IconProps) {
   );
 }
 
+export function IconPower(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M12 2v10M6.4 5.3a8 8 0 1 0 11.2 0" />
+    </SvgIcon>
+  );
+}
+
+export function IconWifi(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M8.5 16a5.5 5.5 0 0 1 7 0M12 20h.01" />
+    </SvgIcon>
+  );
+}
+
+export function IconLogOut(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5M9 12h12m-4-4 4 4-4 4" />
+    </SvgIcon>
+  );
+}
+
+export function IconAlert(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M12 5v8m0 5h.01" />
+    </SvgIcon>
+  );
+}
+
 /// 时间线 / 历史（表盘 + 刻度）
 export function IconTimeline(props: IconProps) {
   return (
