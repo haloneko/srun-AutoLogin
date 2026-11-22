@@ -41,6 +41,7 @@ import DebugPanel from "./DebugPanel";
 import { changeTheme } from "@/hooks/useThemeSync";
 import { useWindowTheme, useWindowToast } from "@/components/WindowShell/WindowShell";
 import { useDebugMode } from "@/hooks/useDebugMode";
+import { usePageVisible } from "@/hooks/usePageVisible";
 import { useTriggers } from "@/hooks/useTriggers";
 import { isThemeUnlocked, THEMES } from "@/domain/theme";
 import type { ThemeId } from "@/domain/theme";
@@ -233,7 +234,7 @@ function SettingTextField({
   return (
     <Field label={field.label} hint={field.hint} inline>
       <input
-        className="settings-input"
+        className="control-surface settings-input"
         type={field.secret ? (showPwd ? "text" : "password") : "text"}
         value={value}
         onChange={(e) => onChange(field.key, e.target.value)}
@@ -245,7 +246,7 @@ function SettingTextField({
       {field.secret && (
         <button
           type="button"
-          className="settings-input__btn"
+          className="control-surface settings-input__btn"
           onClick={onTogglePwd}
           aria-label={showPwd ? "隐藏密码" : "显示密码"}
         >
@@ -256,7 +257,7 @@ function SettingTextField({
         <span className="settings-input__actions">
           <button
             type="button"
-            className="settings-input__btn settings-input__btn--ok"
+            className="control-surface settings-input__btn"
             onClick={onConfirm}
             aria-label={`确认保存${field.label}`}
           >
@@ -264,7 +265,7 @@ function SettingTextField({
           </button>
           <button
             type="button"
-            className="settings-input__btn"
+            className="control-surface settings-input__btn"
             onClick={onCancel}
             aria-label={`撤销${field.label}修改`}
           >
@@ -279,6 +280,7 @@ function SettingTextField({
 export default function SettingsPanel() {
   const onToast = useWindowToast();
   const theme = useWindowTheme();
+  const visible = usePageVisible();
   const [values, setValues] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, string>>({});
   const [startupMode, setStartupMode] = useState<StartupMode>("manual");
@@ -295,6 +297,10 @@ export default function SettingsPanel() {
   const pendingScroll = useRef<string | null>(null);
   /// 调试模式开着才在导航里露出「调试」入口
   const debug = useDebugMode();
+
+  useEffect(() => {
+    if (!visible) setShowPwd(false);
+  }, [visible]);
 
   useEffect(() => {
     const id = pendingScroll.current;

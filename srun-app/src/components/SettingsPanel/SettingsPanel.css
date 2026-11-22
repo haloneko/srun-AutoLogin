@@ -31,7 +31,7 @@
     background 0.15s;
 }
 
-.settings-nav__item:hover {
+:where(:root[data-window-hover]) .settings-nav__item:hover {
   color: var(--text-1);
   background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
@@ -95,12 +95,15 @@
   color: var(--muted);
 }
 
+#appearance .option--on {
+  backdrop-filter: blur(6px);
+}
+
 /* 独立页面（调试 / 关于）：切过去时右侧只留它自己 */
 .settings-panes--solo > .settings-section:not(.settings-page) {
   display: none;
 }
 
-.about-subtitle,
 .debug-subtitle {
   margin: 16px 0 6px;
   font-size: 12.5px;
@@ -189,45 +192,137 @@
   font-variant-numeric: tabular-nums;
 }
 
-.about-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.about-product,
+.about-credits__card {
+  border: 1px solid var(--surface-edge);
+  border-radius: 11px;
+  background-color: var(--surface-tint);
+  box-shadow: var(--surface-highlight);
 }
 
-.about-item {
+.about-product {
   display: grid;
-  grid-template-columns: 172px minmax(0, 1fr) 122px;
-  gap: 12px;
-  align-items: baseline;
-  padding: 7px 0;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 17px 16px;
+  background-image: linear-gradient(115deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 70%);
+}
+
+.about-product__icon {
+  display: block;
+  padding: 7px;
+  border: 1px solid color-mix(in srgb, #3a7fc4 18%, var(--surface-edge));
+  border-radius: 11px;
+  background-color: color-mix(in srgb, #3a7fc4 12%, transparent);
+}
+
+.about-product__name {
+  margin: 0 0 4px;
+  color: var(--text-1);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.about-product__desc {
+  margin: 0;
+  color: var(--text-2);
   font-size: 12px;
-  border-top: 1px solid var(--border);
+  line-height: 1.5;
 }
 
-.about-item:first-child {
-  border-top: none;
+.about-product__version {
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--surface-edge));
+  border-radius: 5px;
+  background-color: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
 
-.about-item__name {
+.about-credits {
+  margin-top: 22px;
+}
+
+.about-credits__title {
+  margin: 0 0 9px;
+  color: var(--text-1);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.about-categories {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+}
+
+.about-categories button {
+  padding: 6px 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+:where(:root[data-window-hover]) .about-categories button:hover {
+  background-color: color-mix(in srgb, var(--text-2) 9%, transparent);
+}
+
+.about-categories button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--surface-edge));
+  background-color: color-mix(in srgb, var(--accent) 11%, transparent);
+  color: var(--accent-dark);
+}
+
+.about-categories button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.about-projects {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.about-projects td {
+  border-top: 1px solid var(--line);
+  padding: 8px 16px;
+  vertical-align: top;
+}
+
+.about-projects__name,
+.about-projects__desc {
+  display: block;
+}
+
+.about-projects__name {
   font-weight: 600;
   color: var(--text-1);
 }
 
-.about-item__desc {
-  color: var(--muted);
+.about-projects__desc {
+  margin-top: 2px;
+  color: var(--text-2);
 }
 
-.about-item__license {
+.about-projects__license {
+  width: 178px;
   text-align: right;
-  color: var(--muted);
-}
-
-.about-note {
-  margin: 14px 0 0;
   font-size: 11px;
-  line-height: 1.6;
-  color: var(--muted);
+  color: var(--text-2);
 }
 
 /* ---- 文本输入 ---- */
@@ -237,22 +332,10 @@
   padding: 8px 11px;
   font-size: 13px;
   color: var(--text);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  outline: none;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
 }
 
 .settings-input::placeholder {
-  color: color-mix(in srgb, var(--muted) 75%, transparent);
-}
-
-.settings-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--muted);
 }
 
 /* 输入框右侧的图标按钮（眼睛 / 确认 / 撤销） */
@@ -264,23 +347,12 @@
   flex-shrink: 0;
   padding: 0;
   color: var(--text-2);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
   cursor: pointer;
-  transition:
-    color 0.15s,
-    border-color 0.15s;
 }
 
-.settings-input__btn:hover {
+:where(:root[data-window-hover]) .settings-input__btn:hover,
+.settings-input__btn:focus-visible {
   color: var(--accent);
-  border-color: var(--accent);
-}
-
-.settings-input__btn--ok:hover {
-  color: var(--accent);
-  border-color: var(--accent);
 }
 
 .settings-input__actions {
@@ -308,7 +380,7 @@
     background 0.15s;
 }
 
-.settings-btn:hover:not(:disabled) {
+:where(:root[data-window-hover]) .settings-btn:hover:not(:disabled) {
   color: var(--accent);
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 7%, transparent);

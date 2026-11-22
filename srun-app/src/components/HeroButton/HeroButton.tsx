@@ -65,7 +65,7 @@ export default function HeroButton({ status, disabled, onClick }: HeroButtonProp
       >
         <span className="hero-visual">
           <svg className="hero-svg" viewBox="0 0 200 200" aria-hidden>
-            <circle className="hero-ticks" cx="100" cy="100" r="90" pathLength="100" />
+            <circle className="hero-ticks" cx="100" cy="100" r="90" pathLength="18" />
             <circle className="hero-track" cx="100" cy="100" r="79" />
             <circle className="hero-arc hero-arc--a" cx="100" cy="100" r="79" pathLength="100" />
             <circle className="hero-arc hero-arc--b" cx="100" cy="100" r="79" pathLength="100" />

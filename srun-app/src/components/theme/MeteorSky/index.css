@@ -1,119 +1,180 @@
 .meteor-sky {
-  background: radial-gradient(125% 95% at 18% -10%, #16233c 0%, #0a1122 44%, #05070f 100%);
+  --meteor-gap: 0.58s;
+  --meteor-interval: calc(var(--meteor-gap) * 4);
+  --meteor-angle: 215deg;
+  --meteor-tail: clamp(68px, 17vw, 154px);
+  --meteor-thickness: 4px;
+  --meteor-head: 5px;
+  --meteor-brightness: 0.97;
+  background:
+    radial-gradient(ellipse at 23% -12%, #233b63, transparent 66%),
+    radial-gradient(ellipse at 92% 4%, #222645, transparent 54%),
+    linear-gradient(174deg, #0b1426, #070b16 88%);
 }
 
 .meteor-sky__stars {
   position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(1.2px 1.2px at 12% 22%, #ffffff, transparent 60%),
-    radial-gradient(1.6px 1.6px at 63% 14%, rgba(255, 255, 255, 0.95), transparent 60%),
-    radial-gradient(1.2px 1.2px at 38% 68%, rgba(226, 240, 255, 0.95), transparent 60%),
-    radial-gradient(1.4px 1.4px at 84% 48%, rgba(255, 255, 255, 0.9), transparent 60%),
-    radial-gradient(1px 1px at 26% 88%, rgba(255, 255, 255, 0.9), transparent 60%),
-    radial-gradient(1.3px 1.3px at 72% 82%, #ffffff, transparent 60%),
-    radial-gradient(2.4px 2.4px at 45% 30%, rgba(255, 255, 255, 0.75), transparent 70%),
-    radial-gradient(2.2px 2.2px at 8% 62%, rgba(214, 231, 255, 0.6), transparent 70%);
-  background-size:
-    96px 96px,
-    142px 142px,
-    118px 118px,
-    168px 168px,
-    134px 134px,
-    190px 190px,
-    620px 620px,
-    740px 740px;
-  animation: star-twinkle 6s ease-in-out infinite alternate;
+  inset: 0 0 24%;
+  background:
+    radial-gradient(circle at 6% 13%, #b9d5fd96 0 0.5px, transparent 1.25px),
+    radial-gradient(circle at 14% 25%, #aec8f567 0 0.6px, transparent 1.3px),
+    radial-gradient(circle at 21% 8%, #e1edff9e 0 0.75px, transparent 1.6px),
+    radial-gradient(circle at 32% 18%, #c6deff80 0 0.45px, transparent 1.25px),
+    radial-gradient(circle at 44% 10%, #abc5f57b 0 0.5px, transparent 1.25px),
+    radial-gradient(circle at 56% 22%, #cbddffad 0 0.75px, transparent 1.55px),
+    radial-gradient(circle at 67% 7%, #b4c5f782 0 0.5px, transparent 1.3px),
+    radial-gradient(circle at 78% 19%, #e1ecffa1 0 0.65px, transparent 1.5px),
+    radial-gradient(circle at 89% 10%, #b3cbf576 0 0.45px, transparent 1.2px),
+    radial-gradient(circle at 96% 28%, #bcd8ff80 0 0.6px, transparent 1.4px),
+    radial-gradient(circle at 8% 47%, #c2dafe70 0 0.6px, transparent 1.45px),
+    radial-gradient(circle at 23% 36%, #c8deff90 0 0.6px, transparent 1.4px),
+    radial-gradient(circle at 38% 43%, #adcef573 0 0.45px, transparent 1.15px),
+    radial-gradient(circle at 51% 36%, #bed7fd68 0 0.6px, transparent 1.35px),
+    radial-gradient(circle at 64% 49%, #bfdbff80 0 0.55px, transparent 1.25px),
+    radial-gradient(circle at 74% 33%, #d1e4ffa8 0 0.7px, transparent 1.5px),
+    radial-gradient(circle at 84% 46%, #a5bff16b 0 0.55px, transparent 1.3px),
+    radial-gradient(circle at 93% 60%, #b1ccf65e 0 0.5px, transparent 1.25px),
+    radial-gradient(circle at 12% 71%, #abc7f35f 0 0.6px, transparent 1.2px),
+    radial-gradient(circle at 28% 64%, #bcd6ff73 0 0.55px, transparent 1.35px),
+    radial-gradient(circle at 45% 76%, #b4d3ff59 0 0.4px, transparent 1.2px),
+    radial-gradient(circle at 57% 63%, #bed4ff6b 0 0.6px, transparent 1.3px),
+    radial-gradient(circle at 72% 72%, #bdcfff61 0 0.45px, transparent 1.2px),
+    radial-gradient(circle at 84% 83%, #b9d0f14f 0 0.6px, transparent 1.25px);
+  mask-image: linear-gradient(#000 30%, #0009 74%, transparent);
 }
 
-.meteor-sky__stars--far {
-  background-image:
-    radial-gradient(0.8px 0.8px at 18% 38%, rgba(255, 255, 255, 0.6), transparent 60%),
-    radial-gradient(0.7px 0.7px at 56% 8%, rgba(214, 231, 255, 0.55), transparent 60%),
-    radial-gradient(0.9px 0.9px at 88% 66%, rgba(255, 255, 255, 0.5), transparent 60%),
-    radial-gradient(0.7px 0.7px at 34% 54%, rgba(255, 255, 255, 0.45), transparent 60%);
-  background-size:
-    74px 74px,
-    110px 110px,
-    152px 152px,
-    92px 92px;
-  opacity: 0.6;
-  animation-duration: 11s;
-}
-
-.meteor-sky__beams {
+/* 按间隔依次出发，循环结束时才切换到下一条轨迹。 */
+.meteor-sky__route {
+  --meteor-slot: 0;
+  --meteor-lane: 0;
+  --meteor-delay: calc(var(--meteor-gap) * var(--meteor-slot) - var(--meteor-interval) * var(--meteor-lane));
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  animation: meteor-lanes calc(var(--meteor-interval) * 4) steps(1, end) infinite;
+  animation-delay: var(--meteor-delay);
 }
 
-.m-beam {
-  --trail-len: 120px;
+/* 交替经过靠左与靠右的轨迹，让相邻出现的流星散开。 */
+.meteor-sky__route[data-slot="1"] {
+  --meteor-slot: 1;
+  --meteor-lane: 2;
+  --meteor-tail: clamp(61px, 14vw, 126px);
+  --meteor-thickness: 3px;
+  --meteor-head: 4px;
+  --meteor-brightness: 0.81;
+}
 
-  position: absolute;
-  width: var(--trail-len);
-  height: 1px;
-  border-radius: 999px;
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.98) 0%,
-    rgba(214, 232, 255, 0.72) 18%,
-    rgba(160, 200, 255, 0.26) 48%,
-    rgba(120, 170, 255, 0) 100%
-  );
-  filter: drop-shadow(0 0 6px rgba(210, 232, 255, 0.55));
-  transform: rotate(215deg) translateX(0);
+.meteor-sky__route[data-slot="2"] {
+  --meteor-slot: 2;
+  --meteor-lane: 1;
+  --meteor-tail: clamp(62px, 15vw, 141px);
+  --meteor-thickness: 3.5px;
+  --meteor-brightness: 0.9;
+}
+
+.meteor-sky__route[data-slot="3"] {
+  --meteor-slot: 3;
+  --meteor-lane: 3;
+  --meteor-tail: clamp(56px, 13vw, 116px);
+  --meteor-thickness: 3px;
+  --meteor-head: 4px;
+  --meteor-brightness: 0.74;
+}
+
+.meteor-sky__meteor {
+  --meteor-travel: calc(124vw + var(--meteor-tail) + 16px);
+  display: block;
+  position: relative;
+  width: var(--meteor-tail);
+  height: var(--meteor-thickness);
+  transform-origin: left center;
   opacity: 0;
-  animation: beam-fall 1.6s linear infinite;
-  will-change: transform, opacity;
+  animation: meteor-flight var(--meteor-interval) linear infinite;
+  animation-delay: var(--meteor-delay);
 }
 
-.m-beam::before {
+.meteor-sky__meteor::before {
   content: "";
   position: absolute;
+  z-index: 1;
   top: 50%;
   left: 0;
-  width: 3px;
-  height: 3px;
+  width: var(--meteor-head);
+  height: var(--meteor-head);
   border-radius: 50%;
-  background: #ffffff;
-  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #fff 28%, #edf7ff 52%, #bedaff 72%, #9cc5ff55 100%);
   box-shadow:
-    0 0 6px 2px rgba(255, 255, 255, 0.95),
-    0 0 16px 5px rgba(170, 210, 255, 0.5),
-    0 0 36px 10px rgba(90, 140, 255, 0.22);
+    0 0 4px 1px #eaf5ffe6,
+    0 0 11px 2px #a3caffc4,
+    0 0 19px #709cff80;
+  transform: translate(-50%, -50%);
 }
 
-@keyframes beam-fall {
+.meteor-sky__meteor::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    #fff 0%,
+    #e8f6ff 8%,
+    #b3d6ffdc 24%,
+    #89b6ff8a 46%,
+    #729cf348 68%,
+    #6689ec18 86%,
+    #6689ec00 100%
+  );
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+@keyframes meteor-lanes {
+  0%, 100% {
+    transform: translate(14vw, 16vh);
+  }
+  25% {
+    transform: translate(34vw, 29vh);
+  }
+  50% {
+    transform: translate(54vw, 12vh);
+  }
+  75% {
+    transform: translate(74vw, 24vh);
+  }
+}
+
+@keyframes meteor-flight {
   0% {
-    transform: rotate(215deg) translateX(0);
+    transform: rotate(var(--meteor-angle)) translateX(0);
     opacity: 0;
   }
-  6% {
-    opacity: 1;
+  3%, 55% {
+    opacity: var(--meteor-brightness);
   }
-  82% {
-    opacity: 1;
-  }
-  100% {
-    transform: rotate(215deg) translateX(-40vmax);
+  60%, 100% {
+    transform: rotate(var(--meteor-angle)) translateX(calc(-1 * var(--meteor-travel)));
     opacity: 0;
   }
 }
 
-@keyframes star-twinkle {
-  from {
-    opacity: 0.55;
-  }
-  to {
-    opacity: 1;
-  }
+.meteor-sky--paused .meteor-sky__route,
+.meteor-sky--paused .meteor-sky__meteor {
+  animation-play-state: paused;
 }
 
-:root[data-bg="meteor"] {
-  background-color: #05070f;
+:root[data-theme="dark"][data-bg="meteor"] {
+  background-color: #070b16;
+  --bg: #0b1224;
+  --card: #131d31;
+  --border: #293751;
+  --accent: #9bbfff;
+  --accent-dark: #86adee;
+  --text-2: #acbbd3;
+  --muted: #8499b8;
 }
 
-:root[data-bg="meteor"] body {
+:root[data-bg="meteor"] body,
+:root[data-bg="meteor"] .wf-root {
   background: transparent;
 }
 
@@ -121,29 +182,13 @@
   opacity: 0;
 }
 
-:root[data-bg="meteor"] .wf-root {
-  background: transparent;
-}
-
-:root[data-bg="meteor"] .wf-footer {
-  background: color-mix(in srgb, #0a1122 70%, transparent);
-  backdrop-filter: blur(10px);
-}
-
 :root[data-bg="meteor"] .panel {
-  background: color-mix(in srgb, #0f1626 86%, transparent);
+  background: color-mix(in srgb, var(--card) 80%, transparent);
   backdrop-filter: blur(8px);
 }
 
-
 @media (prefers-reduced-motion: reduce) {
-  .m-beam {
-    animation: none;
-    opacity: 0;
-  }
-
-  .meteor-sky__stars,
-  .meteor-sky__stars--far {
-    animation: none;
+  .meteor-sky__route {
+    display: none;
   }
 }

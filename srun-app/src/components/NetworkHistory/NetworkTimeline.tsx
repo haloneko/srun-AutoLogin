@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
 import type { NetworkSegment } from "@/common/types";
+import { subscribeWindowHoverReset } from "@/common/windowHover";
 import {
   buildTicks,
   buildTrack,
@@ -61,6 +62,11 @@ export default function NetworkTimeline({ segments, loading = false, actions }: 
   const [keyRatio, setKeyRatio] = useState<number | null>(null);
   const plotRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ pointer: number; x: number; start: number; width: number } | null>(null);
+
+  useEffect(() => subscribeWindowHoverReset(() => {
+    setHoverRatio(null);
+    dragRef.current = null;
+  }), []);
 
   // 进行中的区间随 hook 一起刷新，日期跨过零点时也会重新计算。
   const now = useMemo(() => Date.now(), [segments, dayOffset]);

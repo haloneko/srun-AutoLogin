@@ -48,7 +48,7 @@
   cursor: pointer;
 }
 
-.ctx__item:not(:disabled):hover,
+:where(:root[data-window-hover]) .ctx__item:not(:disabled):hover,
 .ctx__item--active:not(:disabled) {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent);
@@ -64,7 +64,7 @@
   color: var(--danger);
 }
 
-.ctx__item--danger:not(:disabled):hover,
+:where(:root[data-window-hover]) .ctx__item--danger:not(:disabled):hover,
 .ctx__item--danger.ctx__item--active:not(:disabled) {
   background: color-mix(in srgb, var(--danger) 14%, transparent);
   color: var(--danger);
@@ -97,7 +97,7 @@
 }
 
 .ctx__item--active:not(:disabled) .ctx__hint,
-.ctx__item:not(:disabled):hover .ctx__hint {
+:where(:root[data-window-hover]) .ctx__item:not(:disabled):hover .ctx__hint {
   color: inherit;
   opacity: 0.8;
 }

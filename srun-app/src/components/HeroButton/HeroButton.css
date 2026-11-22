@@ -148,9 +148,8 @@
 .hero-ticks {
   fill: none;
   stroke: var(--hero-accent);
-  /* 细长刻度：沿周长 1.4 格、径向 2.5px，绕一圈正好 25 根 */
   stroke-width: 2.5;
-  stroke-dasharray: 1.4 4;
+  stroke-dasharray: 0.25 0.75;
   opacity: 0.32;
   transform-box: view-box;
   transform-origin: 50% 50%;
@@ -269,11 +268,11 @@
 }
 
 /* 已连接 ⇄ 退出登录：悬浮切换 */
-.hero--success:hover .hero-label__text {
+:where(:root[data-window-hover]) .hero--success:hover .hero-label__text {
   opacity: 0;
 }
 
-.hero--success:hover .hero-label__alt {
+:where(:root[data-window-hover]) .hero--success:hover .hero-label__alt {
   opacity: 1;
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
 import { applyTheme, isThemeUnlocked, readTheme, resolveTheme, saveTheme } from "@/domain/theme";
 import type { ThemeId } from "@/domain/theme";
@@ -24,7 +24,7 @@ function ensureListening() {
 export function useThemeSync(): ThemeId {
   const [theme, setTheme] = useState<ThemeId>(() => readTheme());
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const current = readTheme();
     publish(current);
     setTheme(current);
