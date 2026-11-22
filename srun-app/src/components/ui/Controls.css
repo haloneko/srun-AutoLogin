@@ -51,18 +51,17 @@
 
 /* ---- 输入框与单选卡片共用的半透明表面 ---- */
 .control-surface {
-  --control-edge: color-mix(in srgb, var(--text-2) 24%, transparent);
-  border: 1px solid var(--control-edge);
+  border: 1px solid var(--surface-edge);
   border-radius: 9px;
-  background-color: color-mix(in srgb, var(--card) 46%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-1) 4%, transparent);
+  background-color: var(--surface-tint);
+  box-shadow: var(--surface-highlight);
   transition:
     border-color 0.15s ease,
     background-color 0.15s ease;
 }
 
 .control-surface:not(.option--on, .option--locked, :disabled, :focus-visible):hover {
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--control-edge));
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--surface-edge));
   background-color: color-mix(in srgb, var(--card) 63%, transparent);
 }
 

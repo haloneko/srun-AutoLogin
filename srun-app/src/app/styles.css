@@ -12,6 +12,9 @@
   --muted: #7b8694;
   --card: #ffffff;
   --border: #e8ecf1;
+  --surface-tint: color-mix(in srgb, var(--card) 46%, transparent);
+  --surface-edge: color-mix(in srgb, var(--text-2) 24%, transparent);
+  --surface-highlight: inset 0 1px 0 color-mix(in srgb, var(--text-1) 4%, transparent);
   /* 细线：球体装饰环、栅格纹理，比 --border 更淡 */
   --line: rgba(21, 28, 36, 0.05);
   --success: #0f9d76;
